@@ -58,7 +58,7 @@ describe('JSON and table output', () => {
     const doc = JSON.parse(formatJson(scanFixture('fixture-pre-revision.json'), '0.1.0'));
     expect(doc.revision).toBe('2026-07-28');
     expect(doc.era).toBe('legacy');
-    expect(doc.summary).toEqual({ errors: 5, warnings: 2, infos: 3 });
+    expect(doc.summary).toEqual({ errors: 8, warnings: 2, infos: 3 });
     for (const f of doc.findings) {
       expect(f.section).toMatch(/^https:\/\/modelcontextprotocol\.io\//);
       expect(typeof f.change).toBe('string');
@@ -69,7 +69,7 @@ describe('JSON and table output', () => {
   it('table shows the spec link and a summary line', () => {
     const t = formatTable(scanFixture('fixture-pre-revision.json'));
     expect(t).toContain('spec:   https://modelcontextprotocol.io/specification/2026-07-28/server/discover');
-    expect(t).toMatch(/5 error\(s\), 2 warning\(s\), 3 info; 4 with an autofix\n$/);
+    expect(t).toMatch(/8 error\(s\), 2 warning\(s\), 3 info; 4 with an autofix\n$/);
   });
 
   it('table says so when there are no findings', () => {

@@ -36,7 +36,7 @@ describe('Markdown output', () => {
 
   it('includes the summary', () => {
     expect(markdown).toContain('**Summary:**');
-    expect(markdown).toContain('5 errors, 2 warnings, 3 info;');
+    expect(markdown).toContain('8 errors, 2 warnings, 3 info;');
     expect(markdown).toContain('4 with an autofix');
   });
 });

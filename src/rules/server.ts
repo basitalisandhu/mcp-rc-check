@@ -190,12 +190,16 @@ const resultTypeMissing: ServerRule = {
   autofix: true,
   check(view) {
     const out: Finding[] = [];
-    for (const ref of view.results) {
+    for (const { ref, fixable } of resultsToCheck(view)) {
       if (!has(ref.result, 'resultType')) {
         out.push(
-          finding(this, subjectOf(ref), ref.ptr, `the ${ref.method} result${pageNote(ref)} has no resultType`, [
-            { op: 'add', path: join(ref.ptr, 'resultType'), value: 'complete' },
-          ]),
+          finding(
+            this,
+            subjectOf(ref),
+            ref.ptr,
+            `the ${ref.method} result${pageNote(ref)} has no resultType`,
+            fixable ? [{ op: 'add', path: join(ref.ptr, 'resultType'), value: 'complete' }] : undefined,
+          ),
         );
       } else if (typeof ref.result.resultType !== 'string') {
         out.push(finding(this, subjectOf(ref), join(ref.ptr, 'resultType'), `the ${ref.method} result${pageNote(ref)} has a resultType that is not a string`));
@@ -213,6 +217,17 @@ function pageNote(ref: ResultRef): string {
   return ref.page > 0 ? ` (page ${ref.page + 1})` : '';
 }
 
+/**
+ * Results to validate: every captured result, then the repeated tools/list result when the dump recorded one.
+ * The repeat is validated too, but never fixable: the first page is the canonical page an autofix may rewrite,
+ * so a patch under /toolsRepeat/result is never proposed.
+ */
+function resultsToCheck(view: View): { ref: ResultRef; fixable: boolean }[] {
+  const refs = view.results.map((ref) => ({ ref, fixable: true }));
+  if (view.toolsRepeat) refs.push({ ref: view.toolsRepeat, fixable: false });
+  return refs;
+}
+
 const cacheHintsMissing: ServerRule = {
   id: 'cache-hints-missing',
   family: 'results',
@@ -225,28 +240,31 @@ const cacheHintsMissing: ServerRule = {
   autofix: true,
   check(view) {
     const out: Finding[] = [];
-    for (const ref of view.results) {
+    for (const { ref, fixable } of resultsToCheck(view)) {
       if (!(CACHEABLE_METHODS as readonly string[]).includes(ref.method) || isInterim(ref.result)) continue;
       const r = ref.result;
       const where = `the ${ref.method} result${pageNote(ref)}`;
+      const fix = (ops: PatchOp[]): PatchOp[] | undefined => (fixable ? ops : undefined);
       if (!has(r, 'ttlMs')) {
-        out.push(finding(this, subjectOf(ref), ref.ptr, `${where} has no ttlMs`, [{ op: 'add', path: join(ref.ptr, 'ttlMs'), value: 0 }]));
+        out.push(
+          finding(this, subjectOf(ref), ref.ptr, `${where} has no ttlMs`, fix([{ op: 'add', path: join(ref.ptr, 'ttlMs'), value: 0 }])),
+        );
       } else if (typeof r.ttlMs !== 'number' || !Number.isInteger(r.ttlMs) || r.ttlMs < 0) {
         out.push(
-          finding(this, subjectOf(ref), join(ref.ptr, 'ttlMs'), `${where} has ttlMs ${JSON.stringify(r.ttlMs)}; it must be an integer >= 0`, [
+          finding(this, subjectOf(ref), join(ref.ptr, 'ttlMs'), `${where} has ttlMs ${JSON.stringify(r.ttlMs)}; it must be an integer >= 0`, fix([
             { op: 'replace', path: join(ref.ptr, 'ttlMs'), value: 0 },
-          ]),
+          ])),
         );
       }
       if (!has(r, 'cacheScope')) {
         out.push(
-          finding(this, subjectOf(ref), ref.ptr, `${where} has no cacheScope`, [{ op: 'add', path: join(ref.ptr, 'cacheScope'), value: 'private' }]),
+          finding(this, subjectOf(ref), ref.ptr, `${where} has no cacheScope`, fix([{ op: 'add', path: join(ref.ptr, 'cacheScope'), value: 'private' }])),
         );
       } else if (r.cacheScope !== 'public' && r.cacheScope !== 'private') {
         out.push(
-          finding(this, subjectOf(ref), join(ref.ptr, 'cacheScope'), `${where} has cacheScope ${JSON.stringify(r.cacheScope)}; it must be "public" or "private"`, [
+          finding(this, subjectOf(ref), join(ref.ptr, 'cacheScope'), `${where} has cacheScope ${JSON.stringify(r.cacheScope)}; it must be "public" or "private"`, fix([
             { op: 'replace', path: join(ref.ptr, 'cacheScope'), value: 'private' },
-          ]),
+          ])),
         );
       }
     }

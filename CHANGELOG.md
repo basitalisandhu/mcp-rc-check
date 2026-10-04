@@ -6,6 +6,10 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- `cache-hints-missing` and `result-type-missing` now check the repeated `tools/list` result recorded as `toolsRepeat`, which the dump normaliser stores outside `view.results`. A second listing that omits `ttlMs`, `cacheScope` or `resultType` is reported at `/toolsRepeat/result`. Those findings carry no autofix: the first `tools/list` page remains the only page an autofix rewrites.
+
 ## [0.1.0] - 2026-10-04
 
 First release. Published to two registries on GitHub Packages, using only the workflow's `GITHUB_TOKEN`:

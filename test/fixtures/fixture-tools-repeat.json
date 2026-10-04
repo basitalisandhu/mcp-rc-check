@@ -1,0 +1,83 @@
+{
+  "mcpRcCheckDump": 1,
+  "source": {
+    "kind": "stdio",
+    "target": "node fixture-repeat-server.mjs"
+  },
+  "era": "modern",
+  "discover": {
+    "method": "server/discover",
+    "result": {
+      "resultType": "complete",
+      "supportedVersions": [
+        "2026-07-28"
+      ],
+      "capabilities": {
+        "tools": {}
+      },
+      "ttlMs": 60000,
+      "cacheScope": "public",
+      "_meta": {
+        "io.modelcontextprotocol/serverInfo": {
+          "name": "fixture-repeat",
+          "version": "1.0.0"
+        }
+      }
+    }
+  },
+  "lists": {
+    "tools/list": [
+      {
+        "method": "tools/list",
+        "result": {
+          "resultType": "complete",
+          "ttlMs": 60000,
+          "cacheScope": "public",
+          "tools": [
+            {
+              "name": "search",
+              "description": "Search documents",
+              "inputSchema": {
+                "type": "object",
+                "properties": {
+                  "q": {
+                    "type": "string",
+                    "description": "Query text"
+                  }
+                }
+              }
+            }
+          ],
+          "_meta": {
+            "io.modelcontextprotocol/serverInfo": {
+              "name": "fixture-repeat",
+              "version": "1.0.0"
+            }
+          }
+        }
+      }
+    ]
+  },
+  "toolsRepeat": {
+    "method": "tools/list",
+    "result": {
+      "cacheScope": "public",
+      "tools": [
+        {
+          "name": "search",
+          "description": "Search documents",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "q": {
+                "type": "string",
+                "description": "Query text"
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "probes": {}
+}

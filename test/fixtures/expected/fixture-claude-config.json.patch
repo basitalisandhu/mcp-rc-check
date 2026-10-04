@@ -1,0 +1,14 @@
+--- a/test/fixtures/fixture-claude-config.json
++++ b/test/fixtures/fixture-claude-config.json
+@@ -8,10 +8,7 @@
+       "type": "http",
+       "url": "https://tickets.example.invalid/mcp",
+       "headers": {
+-        "Authorization": "Bearer ${TICKETS_TOKEN}",
+-        "MCP-Protocol-Version": "2025-06-18",
+-        "Mcp-Session-Id": "pinned-session",
+-        "Mcp-Method": "tools/call"
++        "Authorization": "Bearer ${TICKETS_TOKEN}"
+       }
+     },
+     "local": {

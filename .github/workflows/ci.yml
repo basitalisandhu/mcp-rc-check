@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test (Node ${{ matrix.node-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: ["22", "24"]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+      - name: Install
+        run: npm ci
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Build and test
+        run: npm test
+      - name: Pack and smoke-test the tarball
+        run: |
+          npm pack
+          mkdir -p "$RUNNER_TEMP/smoke" && cd "$RUNNER_TEMP/smoke"
+          npm init -y >/dev/null
+          npm install "$GITHUB_WORKSPACE"/basitalisandhu-mcp-rc-check-*.tgz
+          npx mcp-rc-check --version
+          npx mcp-rc-check --help | head -1
+          npx mcp-rc-check scan --dump "$GITHUB_WORKSPACE/test/fixtures/fixture-post-revision.json"
+
+  container-build:
+    name: Build the container image and run it
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Build the image, print --help and scan the fixture dumps
+        run: |
+          docker build --build-arg VERSION=ci -t mcp-rc-check:ci .
+          docker run --rm mcp-rc-check:ci --help > help.txt && grep "^Usage" help.txt
+          docker run --rm mcp-rc-check:ci --version
+          test "$(docker run --rm --entrypoint id mcp-rc-check:ci -u)" = "1000"
+          docker run --rm -v "$PWD/test/fixtures:/work:ro" mcp-rc-check:ci scan --dump fixture-post-revision.json
+          if docker run --rm -v "$PWD/test/fixtures:/work:ro" mcp-rc-check:ci scan --dump fixture-pre-revision.json > out.txt; then
+            echo "expected exit 1 for the pre-revision dump"; exit 1
+          fi
+          grep -q "legacy-only-server" out.txt

@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "remote": {
+      "type": "http",
+      "url": "https://clean.example.invalid/mcp",
+      "headers": {
+        "Authorization": "Bearer ${CLEAN_TOKEN}"
+      }
+    },
+    "local": {
+      "command": "node",
+      "args": [
+        "server.js"
+      ]
+    }
+  }
+}

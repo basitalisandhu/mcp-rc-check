@@ -1,0 +1,26 @@
+{
+  "mcpRcCheckDump": 1,
+  "source": {
+    "kind": "stdio",
+    "target": "server"
+  },
+  "era": "modern",
+  "lists": {},
+  "probes": {
+    "resourceNotFound": {
+      "method": "resources/read",
+      "result": {
+        "resultType": "complete",
+        "contents": [],
+        "ttlMs": 0,
+        "cacheScope": "private",
+        "_meta": {
+          "io.modelcontextprotocol/serverInfo": {
+            "name": "errors",
+            "version": "1.0.0"
+          }
+        }
+      }
+    }
+  }
+}

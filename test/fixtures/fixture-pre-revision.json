@@ -1,0 +1,90 @@
+{
+  "mcpRcCheckDump": 1,
+  "source": {
+    "kind": "stdio",
+    "target": "node (+2 arguments)"
+  },
+  "era": "legacy",
+  "discover": {
+    "method": "server/discover",
+    "error": {
+      "code": -32000,
+      "message": "Server not initialized"
+    }
+  },
+  "initialize": {
+    "method": "initialize",
+    "result": {
+      "protocolVersion": "2025-11-25",
+      "capabilities": {
+        "tools": {
+          "listChanged": true
+        },
+        "logging": {},
+        "tasks": {
+          "list": {},
+          "requests": {
+            "tools": {
+              "call": {}
+            }
+          }
+        }
+      },
+      "serverInfo": {
+        "name": "fixture-legacy",
+        "version": "0.9.0"
+      }
+    }
+  },
+  "lists": {
+    "tools/list": [
+      {
+        "method": "tools/list",
+        "result": {
+          "tools": [
+            {
+              "name": "search",
+              "description": "Search documents",
+              "inputSchema": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "type": "object",
+                "properties": {
+                  "q": {
+                    "type": "string"
+                  }
+                }
+              },
+              "execution": {
+                "taskSupport": "optional"
+              }
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "toolsRepeat": {
+    "method": "tools/list",
+    "result": {
+      "tools": [
+        {
+          "name": "search",
+          "description": "Search documents",
+          "inputSchema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "properties": {
+              "q": {
+                "type": "string"
+              }
+            }
+          },
+          "execution": {
+            "taskSupport": "optional"
+          }
+        }
+      ]
+    }
+  },
+  "probes": {}
+}

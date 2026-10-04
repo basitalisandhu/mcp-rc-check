@@ -1,0 +1,67 @@
+{
+  "name": "@basitalisandhu/mcp-rc-check",
+  "version": "0.1.0",
+  "description": "MCP specification migration checker: what an MCP server or client must change for the 2026-07-28 revision, with the spec section for each finding and a patch where the fix is mechanical.",
+  "license": "MIT",
+  "author": "Muhammad Basit Ali",
+  "homepage": "https://github.com/basitalisandhu/mcp-rc-check#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/basitalisandhu/mcp-rc-check.git"
+  },
+  "bugs": {
+    "url": "https://github.com/basitalisandhu/mcp-rc-check/issues"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "mcp-server",
+    "mcp-client",
+    "specification",
+    "migration",
+    "linter",
+    "compliance",
+    "cli",
+    "sarif",
+    "developer-tools"
+  ],
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "bin": {
+    "mcp-rc-check": "dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
+    "pretest": "npm run build",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "prepublishOnly": "npm run clean && npm run build && vitest run"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.11"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com",
+    "access": "public"
+  }
+}

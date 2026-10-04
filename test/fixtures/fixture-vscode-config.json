@@ -1,0 +1,15 @@
+{
+  "servers": {
+    "remote": {
+      "type": "sse",
+      "url": "https://vs.example.invalid/events"
+    },
+    "named": {
+      "type": "http",
+      "url": "https://vs.example.invalid/mcp",
+      "headers": {
+        "Mcp-Name": "search"
+      }
+    }
+  }
+}

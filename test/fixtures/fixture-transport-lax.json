@@ -1,0 +1,316 @@
+{
+  "mcpRcCheckDump": 1,
+  "source": {
+    "kind": "http",
+    "target": "http://127.0.0.1:3000/mcp"
+  },
+  "era": "modern",
+  "discover": {
+    "method": "server/discover",
+    "http": {
+      "status": 200,
+      "contentType": "application/json",
+      "sessionIdHeader": true
+    },
+    "result": {
+      "supportedVersions": [
+        "2026-07-28"
+      ],
+      "capabilities": {
+        "tools": {
+          "listChanged": true
+        },
+        "resources": {
+          "subscribe": true
+        },
+        "logging": {},
+        "tasks": {
+          "list": {}
+        },
+        "extensions": {
+          "no-prefix": {},
+          "com.example/ok": {}
+        }
+      }
+    }
+  },
+  "lists": {
+    "tools/list": [
+      {
+        "method": "tools/list",
+        "http": {
+          "status": 200,
+          "contentType": "application/json",
+          "sessionIdHeader": true
+        },
+        "result": {
+          "tools": [
+            {
+              "name": "create_record",
+              "description": "Create a record",
+              "inputSchema": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "type": "object",
+                "properties": {
+                  "region": {
+                    "type": "number",
+                    "x-mcp-header": "Region"
+                  },
+                  "api_key": {
+                    "type": "string",
+                    "x-mcp-header": "Api-Key"
+                  },
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "x-mcp-header": "Item Id"
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "execution": {
+                "taskSupport": "optional"
+              }
+            },
+            {
+              "name": "lookup",
+              "description": "Look something up",
+              "inputSchema": {
+                "properties": {
+                  "q": {
+                    "$ref": "https://schemas.example.invalid/q.json"
+                  }
+                }
+              }
+            },
+            {
+              "name": "zeta",
+              "description": "Last tool",
+              "inputSchema": {
+                "type": "object"
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "resources/list": [
+      {
+        "method": "resources/list",
+        "http": {
+          "status": 200,
+          "contentType": "application/json",
+          "sessionIdHeader": true
+        },
+        "result": {
+          "resources": [
+            {
+              "uri": "fixture://readme",
+              "name": "readme",
+              "mimeType": "text/plain"
+            }
+          ]
+        }
+      }
+    ],
+    "resources/templates/list": [
+      {
+        "method": "resources/templates/list",
+        "http": {
+          "status": 200,
+          "contentType": "application/json",
+          "sessionIdHeader": true
+        },
+        "result": {
+          "resourceTemplates": [
+            {
+              "uriTemplate": "fixture://notes/{id}",
+              "name": "note"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "toolsRepeat": {
+    "method": "tools/list",
+    "http": {
+      "status": 200,
+      "contentType": "application/json",
+      "sessionIdHeader": true
+    },
+    "result": {
+      "tools": [
+        {
+          "name": "zeta",
+          "description": "Last tool",
+          "inputSchema": {
+            "type": "object"
+          }
+        },
+        {
+          "name": "lookup",
+          "description": "Look something up",
+          "inputSchema": {
+            "properties": {
+              "q": {
+                "$ref": "https://schemas.example.invalid/q.json"
+              }
+            }
+          }
+        },
+        {
+          "name": "create_record",
+          "description": "Create a record",
+          "inputSchema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "properties": {
+              "region": {
+                "type": "number",
+                "x-mcp-header": "Region"
+              },
+              "api_key": {
+                "type": "string",
+                "x-mcp-header": "Api-Key"
+              },
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "x-mcp-header": "Item Id"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "execution": {
+            "taskSupport": "optional"
+          }
+        }
+      ]
+    }
+  },
+  "probes": {
+    "unsupportedVersion": {
+      "method": "server/discover",
+      "http": {
+        "status": 200,
+        "contentType": "application/json",
+        "sessionIdHeader": true
+      },
+      "error": {
+        "code": -32004,
+        "message": "Unsupported protocol version"
+      }
+    },
+    "resourceNotFound": {
+      "method": "resources/read",
+      "http": {
+        "status": 200,
+        "contentType": "application/json",
+        "sessionIdHeader": true
+      },
+      "error": {
+        "code": -32002,
+        "message": "Resource not found"
+      }
+    },
+    "headerMismatch": {
+      "method": "server/discover",
+      "http": {
+        "status": 200,
+        "contentType": "application/json",
+        "sessionIdHeader": true
+      },
+      "result": {
+        "supportedVersions": [
+          "2026-07-28"
+        ],
+        "capabilities": {
+          "tools": {
+            "listChanged": true
+          },
+          "resources": {
+            "subscribe": true
+          },
+          "logging": {},
+          "tasks": {
+            "list": {}
+          },
+          "extensions": {
+            "no-prefix": {},
+            "com.example/ok": {}
+          }
+        }
+      }
+    },
+    "missingMethodHeader": {
+      "method": "server/discover",
+      "http": {
+        "status": 200,
+        "contentType": "application/json",
+        "sessionIdHeader": true
+      },
+      "result": {
+        "supportedVersions": [
+          "2026-07-28"
+        ],
+        "capabilities": {
+          "tools": {
+            "listChanged": true
+          },
+          "resources": {
+            "subscribe": true
+          },
+          "logging": {},
+          "tasks": {
+            "list": {}
+          },
+          "extensions": {
+            "no-prefix": {},
+            "com.example/ok": {}
+          }
+        }
+      }
+    },
+    "unknownMethod": {
+      "method": "mcp-rc-check/unknown-method",
+      "http": {
+        "status": 200,
+        "contentType": "application/json",
+        "sessionIdHeader": true
+      },
+      "error": {
+        "code": -32601,
+        "message": "Method not found"
+      }
+    },
+    "httpGet": {
+      "status": 200,
+      "contentType": "text/event-stream"
+    },
+    "initializeOnModern": {
+      "method": "initialize",
+      "http": {
+        "status": 200,
+        "contentType": "application/json",
+        "sessionIdHeader": true
+      },
+      "error": {
+        "code": -32601,
+        "message": "Method not found"
+      }
+    }
+  }
+}

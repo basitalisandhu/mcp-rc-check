@@ -1,0 +1,12 @@
+--- a/test/fixtures/fixture-results.json
++++ b/test/fixtures/fixture-results.json
+@@ -16,6 +16,7 @@
+       }
+     }
+   ],
+-  "ttlMs": -5,
+-  "cacheScope": "shared"
++  "ttlMs": 0,
++  "cacheScope": "private",
++  "resultType": "complete"
+ }

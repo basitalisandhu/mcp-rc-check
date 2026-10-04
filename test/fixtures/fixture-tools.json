@@ -1,0 +1,145 @@
+{
+  "resultType": "complete",
+  "tools": [
+    {
+      "name": "execute_sql",
+      "description": "Run a query in a region",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "region": {
+            "type": "string",
+            "x-mcp-header": "Region"
+          },
+          "tenant": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "x-mcp-header": "region"
+          },
+          "ratio": {
+            "type": "number",
+            "x-mcp-header": "Ratio"
+          },
+          "options": {
+            "type": "object",
+            "properties": {
+              "mode": {
+                "type": "string",
+                "x-mcp-header": "Mode"
+              },
+              "label": {
+                "x-mcp-header": "Label"
+              }
+            }
+          },
+          "filter": {
+            "anyOf": [
+              {
+                "type": "string",
+                "x-mcp-header": "Filter"
+              }
+            ]
+          },
+          "note": {
+            "type": "string",
+            "x-mcp-header": "Bad Header"
+          },
+          "empty": {
+            "type": "string",
+            "x-mcp-header": ""
+          },
+          "password": {
+            "type": "string",
+            "x-mcp-header": "Db-Pass"
+          },
+          "query": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "region",
+          "query"
+        ]
+      }
+    },
+    {
+      "name": "fetch_schema",
+      "description": "Uses remote and local references",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "remote": {
+            "$ref": "https://schemas.example.invalid/remote.json"
+          },
+          "relative": {
+            "$ref": "other.json#/definitions/x"
+          },
+          "local": {
+            "$ref": "#/$defs/local"
+          }
+        },
+        "$defs": {
+          "local": {
+            "type": "string",
+            "enum": [
+              "a",
+              "b"
+            ]
+          }
+        }
+      },
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    {
+      "name": "no_type",
+      "description": "Missing root type",
+      "inputSchema": {
+        "properties": {
+          "x": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "name": "array_root",
+      "description": "Root type is not object",
+      "inputSchema": {
+        "type": "array"
+      }
+    },
+    {
+      "name": "null_schema",
+      "description": "Null input schema",
+      "inputSchema": null
+    },
+    {
+      "name": "with_tasks",
+      "description": "Declares 2025-11-25 task support",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false
+      },
+      "execution": {
+        "taskSupport": "optional"
+      }
+    }
+  ],
+  "ttlMs": 60000,
+  "cacheScope": "public",
+  "_meta": {
+    "io.modelcontextprotocol/serverInfo": {
+      "name": "tools",
+      "version": "1.0.0"
+    }
+  }
+}

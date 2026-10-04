@@ -1,0 +1,12 @@
+export { allRules, checkClientConfig, checkDump, checkView, failsAt, ruleById, summarise } from './check.js';
+export { clientView, ConfigError } from './config.js';
+export { normalise, DumpError } from './dump.js';
+export type { Dump, Exchange, Probes, View } from './dump.js';
+export { unifiedDiff } from './diff.js';
+export { formatJson, formatRules, formatSarif, formatTable } from './format.js';
+export { runScan, scanHttp, scanStdio, MISSING_RESOURCE_URI } from './live/scan.js';
+export type { LiveOptions } from './live/scan.js';
+export { ConnectionError } from './live/transport.js';
+export { applyOps, collectOps, serialiseLike } from './patch.js';
+export { SECTION, TARGET_REVISION } from './spec.js';
+export type { Era, Finding, PatchOp, Report, RuleMeta, Severity } from './types.js';

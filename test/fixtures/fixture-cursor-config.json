@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "legacy-sse": {
+      "url": "https://legacy.example.invalid/sse"
+    },
+    "streamable": {
+      "url": "https://new.example.invalid/mcp",
+      "headers": {
+        "Last-Event-ID": "42"
+      }
+    }
+  }
+}

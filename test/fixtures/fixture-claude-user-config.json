@@ -1,0 +1,25 @@
+{
+  "numStartups": 3,
+  "mcpServers": {
+    "global-search": {
+      "type": "http",
+      "url": "https://search.example.invalid/mcp",
+      "headers": {
+        "mcp-protocol-version": "2026-07-28"
+      }
+    }
+  },
+  "projects": {
+    "/work/app": {
+      "mcpServers": {
+        "app-db": {
+          "type": "http",
+          "url": "https://db.example.invalid/mcp",
+          "headers": {
+            "Mcp-Param-Region": "us-west1"
+          }
+        }
+      }
+    }
+  }
+}

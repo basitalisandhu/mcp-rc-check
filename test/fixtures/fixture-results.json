@@ -1,0 +1,21 @@
+{
+  "tools": [
+    {
+      "name": "get_weather",
+      "description": "Get the weather for a location",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "location": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "location"
+        ]
+      }
+    }
+  ],
+  "ttlMs": -5,
+  "cacheScope": "shared"
+}

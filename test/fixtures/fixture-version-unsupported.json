@@ -1,0 +1,39 @@
+{
+  "mcpRcCheckDump": 1,
+  "source": {
+    "kind": "http",
+    "target": "http://127.0.0.1:3000/mcp"
+  },
+  "era": "modern",
+  "discover": {
+    "method": "server/discover",
+    "error": {
+      "code": -32022,
+      "message": "Unsupported protocol version",
+      "data": {
+        "supported": [
+          "2026-09-01"
+        ],
+        "requested": "2026-07-28"
+      }
+    },
+    "http": {
+      "status": 400,
+      "contentType": "application/json"
+    }
+  },
+  "lists": {},
+  "probes": {
+    "unsupportedVersion": {
+      "method": "server/discover",
+      "error": {
+        "code": -32022,
+        "message": "Unsupported protocol version"
+      },
+      "http": {
+        "status": 400,
+        "contentType": "application/json"
+      }
+    }
+  }
+}

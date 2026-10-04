@@ -1,0 +1,33 @@
+{
+  "resultType": "complete",
+  "supportedVersions": [
+    "2026-07-28",
+    "2025-11-25"
+  ],
+  "capabilities": {
+    "logging": {},
+    "tasks": {
+      "list": {}
+    },
+    "tools": {
+      "listChanged": true
+    },
+    "resources": {
+      "subscribe": true
+    },
+    "extensions": {
+      "io.modelcontextprotocol/tasks": {},
+      "tasks": {},
+      "com.example/-bad-": {},
+      "1com.example/feature": {}
+    }
+  },
+  "ttlMs": 3600000,
+  "cacheScope": "public",
+  "_meta": {
+    "io.modelcontextprotocol/serverInfo": {
+      "name": "caps",
+      "version": "1.0.0"
+    }
+  }
+}

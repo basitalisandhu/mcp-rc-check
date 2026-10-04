@@ -1,0 +1,257 @@
+{
+  "mcpRcCheckDump": 1,
+  "source": {
+    "kind": "stdio",
+    "target": "node (+2 arguments)"
+  },
+  "era": "modern",
+  "discover": {
+    "method": "server/discover",
+    "result": {
+      "resultType": "complete",
+      "supportedVersions": [
+        "2026-07-28"
+      ],
+      "capabilities": {
+        "tools": {},
+        "resources": {},
+        "prompts": {}
+      },
+      "ttlMs": 60000,
+      "cacheScope": "public",
+      "_meta": {
+        "io.modelcontextprotocol/serverInfo": {
+          "name": "fixture-server",
+          "version": "1.0.0"
+        }
+      }
+    }
+  },
+  "lists": {
+    "tools/list": [
+      {
+        "method": "tools/list",
+        "result": {
+          "resultType": "complete",
+          "tools": [
+            {
+              "name": "get_weather",
+              "title": "Weather",
+              "description": "Get the weather for a location",
+              "inputSchema": {
+                "type": "object",
+                "properties": {
+                  "location": {
+                    "type": "string",
+                    "description": "City name",
+                    "x-mcp-header": "Location"
+                  }
+                },
+                "required": [
+                  "location"
+                ]
+              },
+              "outputSchema": {
+                "type": "object",
+                "properties": {
+                  "temperature": {
+                    "type": "number"
+                  }
+                }
+              },
+              "annotations": {
+                "readOnlyHint": true
+              }
+            }
+          ],
+          "nextCursor": "page-2",
+          "ttlMs": 60000,
+          "cacheScope": "public",
+          "_meta": {
+            "io.modelcontextprotocol/serverInfo": {
+              "name": "fixture-server",
+              "version": "1.0.0"
+            }
+          }
+        }
+      },
+      {
+        "method": "tools/list",
+        "result": {
+          "resultType": "complete",
+          "tools": [
+            {
+              "name": "list_cities",
+              "description": "List known cities",
+              "inputSchema": {
+                "type": "object",
+                "additionalProperties": false
+              },
+              "annotations": {
+                "readOnlyHint": true
+              }
+            }
+          ],
+          "ttlMs": 60000,
+          "cacheScope": "public",
+          "_meta": {
+            "io.modelcontextprotocol/serverInfo": {
+              "name": "fixture-server",
+              "version": "1.0.0"
+            }
+          }
+        }
+      }
+    ],
+    "resources/list": [
+      {
+        "method": "resources/list",
+        "result": {
+          "resultType": "complete",
+          "resources": [
+            {
+              "uri": "fixture://readme",
+              "name": "readme",
+              "mimeType": "text/plain"
+            }
+          ],
+          "ttlMs": 60000,
+          "cacheScope": "public",
+          "_meta": {
+            "io.modelcontextprotocol/serverInfo": {
+              "name": "fixture-server",
+              "version": "1.0.0"
+            }
+          }
+        }
+      }
+    ],
+    "resources/templates/list": [
+      {
+        "method": "resources/templates/list",
+        "result": {
+          "resultType": "complete",
+          "resourceTemplates": [
+            {
+              "uriTemplate": "fixture://notes/{id}",
+              "name": "note"
+            }
+          ],
+          "ttlMs": 60000,
+          "cacheScope": "public",
+          "_meta": {
+            "io.modelcontextprotocol/serverInfo": {
+              "name": "fixture-server",
+              "version": "1.0.0"
+            }
+          }
+        }
+      }
+    ],
+    "prompts/list": [
+      {
+        "method": "prompts/list",
+        "result": {
+          "resultType": "complete",
+          "prompts": [
+            {
+              "name": "summarise",
+              "description": "Summarise a text"
+            }
+          ],
+          "ttlMs": 60000,
+          "cacheScope": "public",
+          "_meta": {
+            "io.modelcontextprotocol/serverInfo": {
+              "name": "fixture-server",
+              "version": "1.0.0"
+            }
+          }
+        }
+      }
+    ]
+  },
+  "toolsRepeat": {
+    "method": "tools/list",
+    "result": {
+      "resultType": "complete",
+      "tools": [
+        {
+          "name": "get_weather",
+          "title": "Weather",
+          "description": "Get the weather for a location",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "location": {
+                "type": "string",
+                "description": "City name",
+                "x-mcp-header": "Location"
+              }
+            },
+            "required": [
+              "location"
+            ]
+          },
+          "outputSchema": {
+            "type": "object",
+            "properties": {
+              "temperature": {
+                "type": "number"
+              }
+            }
+          },
+          "annotations": {
+            "readOnlyHint": true
+          }
+        }
+      ],
+      "nextCursor": "page-2",
+      "ttlMs": 60000,
+      "cacheScope": "public",
+      "_meta": {
+        "io.modelcontextprotocol/serverInfo": {
+          "name": "fixture-server",
+          "version": "1.0.0"
+        }
+      }
+    }
+  },
+  "probes": {
+    "unsupportedVersion": {
+      "method": "server/discover",
+      "error": {
+        "code": -32022,
+        "message": "Unsupported protocol version",
+        "data": {
+          "supported": [
+            "2026-07-28"
+          ],
+          "requested": "1900-01-01"
+        }
+      }
+    },
+    "resourceNotFound": {
+      "method": "resources/read",
+      "error": {
+        "code": -32602,
+        "message": "Resource not found",
+        "data": {
+          "uri": "mcp-rc-check://probe/does-not-exist"
+        }
+      }
+    },
+    "initializeOnModern": {
+      "method": "initialize",
+      "error": {
+        "code": -32601,
+        "message": "initialize is not supported; supported protocol versions: 2026-07-28",
+        "data": {
+          "supported": [
+            "2026-07-28"
+          ]
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,72 @@
+{
+  "mcpRcCheckDump": 1,
+  "source": {
+    "kind": "stdio",
+    "target": "node (+1 argument)"
+  },
+  "era": "modern",
+  "discover": {
+    "method": "server/discover",
+    "result": {
+      "resultType": "complete",
+      "supportedVersions": [
+        "2026-07-28"
+      ],
+      "capabilities": {
+        "prompts": {}
+      },
+      "ttlMs": 0,
+      "cacheScope": "public",
+      "_meta": {
+        "io.modelcontextprotocol/serverInfo": {
+          "name": "paged",
+          "version": "2.0.0"
+        }
+      }
+    }
+  },
+  "lists": {
+    "prompts/list": [
+      {
+        "method": "prompts/list",
+        "result": {
+          "resultType": "complete",
+          "prompts": [
+            {
+              "name": "a"
+            }
+          ],
+          "nextCursor": "2",
+          "ttlMs": 1000,
+          "cacheScope": "public",
+          "_meta": {
+            "io.modelcontextprotocol/serverInfo": {
+              "name": "paged",
+              "version": "2.0.0"
+            }
+          }
+        }
+      },
+      {
+        "method": "prompts/list",
+        "result": {
+          "resultType": "complete",
+          "prompts": [
+            {
+              "name": "b"
+            }
+          ],
+          "ttlMs": 1000,
+          "cacheScope": "private",
+          "_meta": {
+            "io.modelcontextprotocol/serverInfo": {
+              "name": "paged",
+              "version": "2.0.0"
+            }
+          }
+        }
+      }
+    ]
+  },
+  "probes": {}
+}

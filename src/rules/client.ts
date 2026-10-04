@@ -1,0 +1,167 @@
+import { headersOf, transportOf, type ClientView } from '../config.js';
+import { join } from '../pointer.js';
+import { LEGACY_VERSIONS, SECTION, TARGET_REVISION } from '../spec.js';
+import type { Finding } from '../types.js';
+import { isObject } from '../util.js';
+import { finding, type Rule } from './rule.js';
+
+type ClientRule = Rule<ClientView>;
+
+/** Findings for each header whose name matches, with a removal fix. Header values are never echoed. */
+function headerFindings(rule: ClientRule, view: ClientView, match: (lower: string) => boolean, describe: (name: string, value: unknown) => string): Finding[] {
+  const out: Finding[] = [];
+  for (const { name, entry, ptr } of view.entries) {
+    const headers = headersOf(entry);
+    if (!headers) continue;
+    for (const [key, value] of Object.entries(headers)) {
+      if (!match(key.toLowerCase())) continue;
+      const hp = join(ptr, 'headers', key);
+      out.push(finding(rule, name, hp, describe(key, value), [{ op: 'remove', path: hp }]));
+    }
+  }
+  return out;
+}
+
+const sseTransport: ClientRule = {
+  id: 'client-sse-transport',
+  family: 'client-config',
+  side: 'client',
+  severity: 'warning',
+  title: 'A server entry uses the deprecated HTTP+SSE transport',
+  change: 'Switch the entry to Streamable HTTP ("type": "http") once the server offers it.',
+  section: SECTION.deprecated,
+  autofix: false,
+  advisory:
+    'HTTP+SSE is Deprecated (earliest removal three months after SEP-2596 reaches Final), not removed. An entry with no type whose URL path ends in /sse is reported as likely SSE from the URL alone.',
+  check(view) {
+    const out: Finding[] = [];
+    for (const { name, entry, ptr } of view.entries) {
+      const t = transportOf(entry);
+      if (t === 'sse') {
+        out.push(finding(this, name, join(ptr, typeof entry.type === 'string' ? 'type' : 'transport'), `the entry declares transport ${JSON.stringify(t)}`));
+        continue;
+      }
+      const url = typeof entry.url === 'string' ? entry.url : typeof entry.serverUrl === 'string' ? entry.serverUrl : undefined;
+      if (url && entry.type === undefined && entry.transport === undefined) {
+        try {
+          if (/\/sse\/?$/.test(new URL(url).pathname)) out.push(finding(this, name, join(ptr, 'url'), 'the URL path ends in /sse, which usually means the HTTP+SSE transport'));
+        } catch {
+          // not a URL; nothing to infer
+        }
+      }
+    }
+    return out;
+  },
+};
+
+const sessionIdHeader: ClientRule = {
+  id: 'client-session-id-header',
+  family: 'client-config',
+  side: 'client',
+  severity: 'warning',
+  title: 'A server entry sets a static Mcp-Session-Id header',
+  change: 'Remove the header: protocol-level sessions are removed and a server on this revision ignores it.',
+  section: SECTION.earlierHttp,
+  autofix: true,
+  check(view) {
+    return headerFindings(this, view, (h) => h === 'mcp-session-id', (key) => `headers.${key} is set`);
+  },
+};
+
+const pinnedProtocolHeader: ClientRule = {
+  id: 'client-pinned-protocol-header',
+  family: 'client-config',
+  side: 'client',
+  severity: 'error',
+  title: 'A server entry pins MCP-Protocol-Version as a static header',
+  change: 'Remove the header. The client sets MCP-Protocol-Version per request to match the body _meta; a static value that differs is rejected with HTTP 400 and error -32020.',
+  section: SECTION.protocolVersionHeader,
+  autofix: true,
+  check(view) {
+    return headerFindings(
+      this,
+      view,
+      (h) => h === 'mcp-protocol-version',
+      (key, value) => {
+        const v = typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) ? JSON.stringify(value) : 'a non-version value';
+        const extra = typeof value === 'string' && value === TARGET_REVISION ? ' (it matches today, but breaks version fallback)' : '';
+        return `headers.${key} is pinned to ${v}${extra}`;
+      },
+    );
+  },
+};
+
+const staticRoutingHeader: ClientRule = {
+  id: 'client-static-routing-header',
+  family: 'client-config',
+  side: 'client',
+  severity: 'error',
+  title: 'A server entry sets Mcp-Method, Mcp-Name or Mcp-Param-* as a static header',
+  change: 'Remove the header. These mirror each request body; a static value mismatches most requests and the server rejects them with HTTP 400 and error -32020.',
+  section: SECTION.serverValidation,
+  autofix: true,
+  check(view) {
+    return headerFindings(
+      this,
+      view,
+      (h) => h === 'mcp-method' || h === 'mcp-name' || h.startsWith('mcp-param-'),
+      (key) => `headers.${key} is set statically`,
+    );
+  },
+};
+
+const lastEventIdHeader: ClientRule = {
+  id: 'client-last-event-id-header',
+  family: 'client-config',
+  side: 'client',
+  severity: 'warning',
+  title: 'A server entry sets a static Last-Event-ID header',
+  change: 'Remove the header: stream resumability is removed, and a broken stream is retried as a new request.',
+  section: SECTION.earlierHttp,
+  autofix: true,
+  check(view) {
+    return headerFindings(this, view, (h) => h === 'last-event-id', (key) => `headers.${key} is set`);
+  },
+};
+
+const legacyVersionPin: ClientRule = {
+  id: 'client-legacy-version-pin',
+  family: 'client-config',
+  side: 'client',
+  severity: 'info',
+  title: 'A server entry passes a legacy protocol version in its arguments or environment',
+  change: `Check whether the program uses the value to pin the protocol version; if so, allow ${TARGET_REVISION}.`,
+  section: SECTION.versionNegotiation,
+  autofix: false,
+  advisory: 'What a program does with an argument or variable is not visible in the configuration; the match is on the version string only.',
+  check(view) {
+    const out: Finding[] = [];
+    const legacy = new Set<string>(LEGACY_VERSIONS);
+    for (const { name, entry, ptr } of view.entries) {
+      if (Array.isArray(entry.args)) {
+        entry.args.forEach((arg, i) => {
+          if (typeof arg !== 'string') return;
+          const m = arg.match(/\d{4}-\d{2}-\d{2}/);
+          if (m && legacy.has(m[0])) out.push(finding(this, name, join(ptr, 'args', i), `args[${i}] contains protocol version ${m[0]}`));
+        });
+      }
+      if (isObject(entry.env)) {
+        for (const [key, value] of Object.entries(entry.env)) {
+          if (typeof value !== 'string') continue;
+          const m = value.match(/^\d{4}-\d{2}-\d{2}$/);
+          if (m && legacy.has(m[0])) out.push(finding(this, name, join(ptr, 'env', key), `env.${key} is protocol version ${m[0]}`));
+        }
+      }
+    }
+    return out;
+  },
+};
+
+export const clientRules: ClientRule[] = [
+  sseTransport,
+  sessionIdHeader,
+  pinnedProtocolHeader,
+  staticRoutingHeader,
+  lastEventIdHeader,
+  legacyVersionPin,
+];

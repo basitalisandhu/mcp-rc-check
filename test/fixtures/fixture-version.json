@@ -1,0 +1,47 @@
+{
+  "mcpRcCheckDump": 1,
+  "source": {
+    "kind": "stdio",
+    "target": "server"
+  },
+  "era": "modern",
+  "discover": {
+    "method": "server/discover",
+    "result": {
+      "resultType": "complete",
+      "supportedVersions": [
+        "2026-09-01"
+      ],
+      "ttlMs": 0,
+      "cacheScope": "public",
+      "_meta": {
+        "io.modelcontextprotocol/serverInfo": {
+          "name": "future",
+          "version": "3.0.0"
+        }
+      }
+    }
+  },
+  "lists": {},
+  "probes": {
+    "unsupportedVersion": {
+      "method": "server/discover",
+      "result": {
+        "resultType": "complete",
+        "supportedVersions": [
+          "2026-09-01"
+        ],
+        "capabilities": {},
+        "ttlMs": 0,
+        "cacheScope": "public"
+      }
+    },
+    "initializeOnModern": {
+      "method": "initialize",
+      "error": {
+        "code": -32601,
+        "message": "Method not found"
+      }
+    }
+  }
+}

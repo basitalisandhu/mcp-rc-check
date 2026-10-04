@@ -1,0 +1,14 @@
+{
+  "jsonrpc": "2.0",
+  "id": 3,
+  "result": {
+    "tools": [
+      {
+        "name": "echo",
+        "inputSchema": {
+          "type": "object"
+        }
+      }
+    ]
+  }
+}

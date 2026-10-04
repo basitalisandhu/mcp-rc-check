@@ -17,7 +17,7 @@ mcp-rc-check answers that. It is for people who maintain an MCP server or SDK in
 - `client --config <file>` checks a Claude Code, Cursor or VS Code MCP configuration for static headers and transports the revision breaks.
 - Every finding carries a rule id, a severity, the spec section URL, what to change, and whether `--fix` can write it. `--fix` writes a unified diff for the input file; it never edits in place.
 
-Output is `table` (default), `json` or `sarif`; the command exits 1 when a finding reaches `--fail-on`. TypeScript, Node 22 or newer, no runtime dependencies.
+Output is `table` (default), `json`, `sarif` or `markdown`; the command exits 1 when a finding reaches `--fail-on`. TypeScript, Node 22 or newer, no runtime dependencies.
 
 ## Install
 

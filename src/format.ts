@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { allRules, ruleById } from './check.js';
 import type { Report, Severity } from './types.js';
 
-export type Format = 'table' | 'json' | 'sarif';
+export type Format = 'table' | 'json' | 'sarif' | 'markdown';
 
 const LABEL: Record<Severity, string> = { error: 'ERROR', warning: 'WARN', info: 'INFO' };
 
@@ -31,6 +31,33 @@ export function formatTable(report: Report): string {
   const s = report.summary;
   const fixable = report.findings.filter((f) => f.fix).length;
   lines.push(`${s.errors} error(s), ${s.warnings} warning(s), ${s.infos} info; ${fixable} with an autofix`);
+  return lines.join('\n') + '\n';
+}
+
+export function formatMarkdown(report: Report): string {
+  const lines: string[] = [];
+  lines.push(`mcp-rc-check ${report.mode === 'server' ? 'scan' : 'client'}: ${report.target}`);
+  if (report.era) {
+    lines.push(`**Era:** \`${report.era}\``);
+  }
+  if (report.findings.length === 0) {
+    lines.push(`\nNo findings for the ${report.target} revision.`);
+    return lines.join('\n') + '\n';
+  }
+  lines.push('');
+  lines.push('| Severity | Rule | Subject | Message |');
+  lines.push('| --- | --- | --- | --- |');
+  for (const f of report.findings) {
+    const rule = ruleById(f.ruleId);
+    const ruleLink = rule?.section ? `[${f.ruleId}](${rule.section})` : f.ruleId;
+    const severity = LABEL[f.severity];
+    const subject = f.subject.replace(/\\\|/g, '\\\\|');
+    const message = f.message.replace(/\\\|/g, '\\\\|');
+    lines.push(`| ${severity} | ${ruleLink} | ${subject} | ${message} |`);
+  }
+  const s = report.summary;
+  const fixable = report.findings.filter((f) => f.fix).length;
+  lines.push(`\n**Summary:** ${s.errors} errors, ${s.warnings} warnings, ${s.infos} info; ${fixable} with an autofix`);
   return lines.join('\n') + '\n';
 }
 
@@ -122,6 +149,15 @@ export function formatSarif(report: Report, options: SarifOptions): string {
 /** Rules as a table or JSON, for `mcp-rc-check rules`. */
 export function formatRules(format: Format): string {
   if (format === 'json') return JSON.stringify(allRules, null, 2) + '\n';
+  if (format === 'markdown') {
+    const lines = ['| Rule | Side | Severity | Fix | Spec section |', '| --- | --- | --- | --- | --- |'];
+    for (const r of allRules) {
+      const fixText = r.autofix ? 'autofix' : '';
+      const advisoryText = r.advisory ? 'advisory' : '';
+      lines.push(`| ${r.id} | ${r.side} | ${r.severity} | ${fixText} | ${advisoryText} | ${r.section} |`);
+    }
+    return lines.join('\n') + '\n';
+  }
   const lines = allRules.map(
     (r) => `${r.id.padEnd(32)} ${r.side.padEnd(6)} ${r.severity.padEnd(7)} ${r.autofix ? 'autofix ' : '        '}${r.advisory ? 'advisory ' : '         '}${r.section}`,
   );

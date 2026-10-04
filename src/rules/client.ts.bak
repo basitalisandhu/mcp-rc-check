@@ -15,30 +15,19 @@ function headerFindings(rule: ClientRule, view: ClientView, match: (lower: strin
     if (!headers) continue;
     for (const [key, value] of Object.entries(headers)) {
       if (!match(key.toLowerCase())) continue;
-      const hp = join(ptr, headers, key);
-
+      const hp = join(ptr, 'headers', key);
+      
       // Check if the value is exactly a VS Code input reference: ${input:name}
       let message = describe(key, value);
-      if (typeof value === string) {
-        const inputMatch = value.match(/^\\${input:(.+)}$/);
+      if (typeof value === 'string') {
+        const inputMatch = value.match(/^\${input:(.+)}$/);
         if (inputMatch) {
           const inputName = inputMatch[1];
           message += ` (value comes from input "${inputName}")`;
         }
       }
-
+      
       out.push(finding(rule, name, hp, message, [{ op: 'remove', path: hp }]));
-    }
-  }
-  return out;
-}
-        if (inputMatch) {
-          const inputName = inputMatch[1];
-          message += ` (value comes from input "${inputName}")`;
-        }
-      }
-
-      out.push(finding(rule, name, hp, message, [{ op: remove, path: hp }]));
     }
   }
   return out;

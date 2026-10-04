@@ -65,4 +65,24 @@ describe('client config rules', () => {
     const r = checkClientConfig({ mcpServers: { a: { type: 'sse', url: 'https://a.example.invalid/x' } } }, 'x', { disable: ['client-sse-transport'] });
     expect(r.findings).toEqual([]);
   });
+
+  describe('VS Code input references', () => {
+    const vscodeInput = clientFixture('fixture-vscode-inputs-config.json');
+
+    it('shows input name for exact input reference headers', () => {
+      const findings = vscodeInput.findings;
+      const mcpNameFinding = findings.find(f => f.message.includes('Mcp-Name') && f.message.includes('input'));
+      expect(mcpNameFinding).toBeDefined();
+      expect(mcpNameFinding!.message).toContain('(value comes from input "mcp-name")');
+      expect(mcpNameFinding!.message).not.toContain('${input:mcp-name}');
+      expect(mcpNameFinding!.message).not.toContain('actual-mcp-name-value');
+    });
+
+    it('does not echo ordinary header values', () => {
+      const findings = vscodeInput.findings;
+      const messages = findings.map(f => f.message).join('\\n');
+      expect(messages).not.toContain('secret-token');
+      expect(messages).not.toContain('Bearer secret-token');
+    });
+  });
 });

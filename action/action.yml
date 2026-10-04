@@ -1,0 +1,46 @@
+name: mcp-rc-check
+description: Check an MCP dump against the 2026-07-28 revision and upload results to GitHub Code Scanning as SARIF
+author: Muhammad Basit Ali
+branding:
+  icon: check-square
+  color: blue
+
+inputs:
+  dump:
+    description: 'Path to the MCP dump that should be checked'
+    required: true
+  fail-on:
+    description: 'Minimum severity that causes the action to fail (error, warning, info, none)'
+    required: false
+    default: 'error'
+  sarif-file:
+    description: 'Path where the SARIF report should be written'
+    required: false
+    default: 'mcp-rc-check.sarif'
+
+runs:
+  using: composite
+  steps:
+    - name: Check for required dump input
+      shell: bash
+      run: |
+        if [ -z "${{ inputs.dump }}" ]; then
+          echo "Error: dump input is required"
+          exit 1
+        fi
+        if [ ! -f "${{ inputs.dump }}" ]; then
+          echo "Error: dump file '${{ inputs.dump }}' not found"
+          exit 1
+        fi
+
+    - name: Run mcp-rc-check to generate SARIF
+      shell: bash
+      run: |
+        npx @basitalisandhu/mcp-rc-check scan --dump "${{ inputs.dump }}" --format sarif --fail-on "${{ inputs.fail-on }}" > "${{ inputs.sarif-file }}"
+
+    - name: Upload SARIF to GitHub Code Scanning
+      if: ${{ always() }}
+      uses: github/codeql-action/upload-sarif@1a3cc3071b0acea885d297a2b091504123b510f5 # v2.1.3
+      with:
+        sarif_file: ${{ inputs.sarif-file }}
+        category: mcp-rc-check

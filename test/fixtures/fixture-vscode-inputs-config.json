@@ -1,0 +1,20 @@
+{
+  "servers": {
+    "github": {
+      "type": "http",
+      "url": "https://api.githubcopilot.com/mcp",
+      "headers": {
+        "Authorization": "${input:github-token}",
+        "Mcp-Name": "${input:mcp-name}"
+      }
+    },
+    "local": {
+      "type": "sse",
+      "url": "http://localhost:8080/sse",
+      "headers": {
+        "Authorization": "Bearer secret-token",
+        "Mcp-Name": "local-server"
+      }
+    }
+  }
+}

@@ -1,13 +1,25 @@
 name: CI
 
+
+  action-test:
+    name: Test GitHub Action
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fail-on: error
+          sarif-file: mcp-rc-check.sarif
 on:
   push:
     branches: [main]
+  permissions:
+    contents: read
+    security-events: write
   pull_request:
 
 permissions:
   contents: read
-  security-events: write
 
 jobs:
   test:
@@ -59,16 +71,3 @@ jobs:
             echo "expected exit 1 for the pre-revision dump"; exit 1
           fi
           grep -q "legacy-only-server" out.txt
-
-  action-test:
-    name: Test GitHub Action
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: basitalisandhu/mcp-rc-check@main
-        with:
-          dump: test/fixtures/fixture-post-revision.json
-          fail-on: error
-          sarif-file: mcp-rc-check.sarif

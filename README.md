@@ -195,6 +195,38 @@ npm run typecheck
 
 The tests use fixture dumps, fixture client configurations, a stdio fixture server (`test/fixtures/fixture-server.mjs`) and an HTTP fixture server on 127.0.0.1; nothing reaches the network. See [CONTRIBUTING.md](CONTRIBUTING.md), [docs/rules.md](docs/rules.md), [docs/good-first-issues.md](docs/good-first-issues.md) and [SECURITY.md](SECURITY.md).
 
+
+## GitHub Action
+
+This repository provides a reusable GitHub Action that runs `mcp-rc-check` against a committed MCP dump and uploads the results to GitHub Code Scanning as SARIF.
+
+### Usage
+
+```yaml
+name: Check MCP
+on: [push, pull_request]
+jobs:
+  mcp-rc-check:
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write  # Required for SARIF upload
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: basitalisandhu/mcp-rc-check@main
+        with:
+          dump: test/fixtures/fixture-post-revision.json
+          fail-on: error
+          sarif-file: mcp-rc-check.sarif
+```
+
+### Inputs
+
+- `dump`: **Required** Path to the MCP dump that should be checked
+- `fail-on`: Minimum severity that causes the action to fail (error, warning, info, none). Default: `error`
+- `sarif-file`: Path where the SARIF report should be written. Default: `mcp-rc-check.sarif`
+
+The action executes the published `@basitalisandhu/mcp-rc-check` npm package using `npx`, so no manual installation is required.
 ## Related projects
 
 More tools by the same author: https://github.com/basitalisandhu

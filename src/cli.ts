@@ -10,16 +10,11 @@ import { formatJson, formatRules, formatSarif, formatTable, type Format } from '
 import { scanHttp, scanStdio } from './live/scan.js';
 import { ConnectionError } from './live/transport.js';
 import { applyOps, collectOps, serialiseLike } from './patch.js';
+import { surfaceMain } from './surface/cli.js';
 import type { Report, Severity } from './types.js';
+import { VERSION } from './version.js';
 
-export const VERSION: string = (() => {
-  try {
-    const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as { version?: string };
-    return pkg.version ?? '0.0.0';
-  } catch {
-    return '0.0.0';
-  }
-})();
+export { VERSION };
 
 const USAGE = `Usage: mcp-rc-check <command> [options]
 
@@ -30,6 +25,8 @@ Commands:
   scan                     Check a server, live or from a saved dump
   client --config <file>   Check a client configuration (.mcp.json, ~/.claude.json, Cursor or VS Code mcp.json)
   rules                    List the rules with their spec sections
+  surface <subcommand>     Pin a server's tool surface in a lock file and report what changed since
+                           (lock, verify, diff, hook, watch-config, verify-config; see surface --help)
 
 Scan targets (exactly one):
   --stdio "<command>"      Start the server and speak to it over stdio
@@ -219,6 +216,7 @@ function writePatch(report: Report, input: { file: string; text: string; doc: un
 }
 
 export async function main(argv: string[], io: Io): Promise<number> {
+  if (argv[0] === 'surface') return surfaceMain(argv.slice(1), io);
   let o: CliOptions;
   try {
     o = parseArgs(argv);

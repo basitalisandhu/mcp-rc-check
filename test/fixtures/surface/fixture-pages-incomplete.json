@@ -1,0 +1,28 @@
+[
+  {
+    "tools": [
+      {
+        "name": "read_file",
+        "title": "Read file",
+        "description": "Read a file from the workspace and return its text.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "path": {
+              "type": "string",
+              "description": "Path relative to the workspace"
+            }
+          },
+          "required": [
+            "path"
+          ]
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "openWorldHint": false
+        }
+      }
+    ],
+    "nextCursor": "page-1"
+  }
+]

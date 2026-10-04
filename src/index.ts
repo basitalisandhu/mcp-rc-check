@@ -10,3 +10,24 @@ export { ConnectionError } from './live/transport.js';
 export { applyOps, collectOps, serialiseLike } from './patch.js';
 export { SECTION, TARGET_REVISION } from './spec.js';
 export type { Era, Finding, PatchOp, Report, RuleMeta, Severity } from './types.js';
+export { sarifLog } from './format.js';
+export type { SarifLevel, SarifResult, SarifRule, SarifRun } from './format.js';
+export { VERSION } from './version.js';
+
+// Tool-surface pinning (`mcp-rc-check surface`).
+export { collectSurface, collectHttp as collectSurfaceHttp, collectStdio as collectSurfaceStdio } from './live/surface.js';
+export { compareSurfaces, compareWithLock, counts, fails as surfaceFails, sortChanges } from './surface/compare.js';
+export type { Change as SurfaceChange, SurfaceReport } from './surface/compare.js';
+export { configEntries, expandVars, lockFileName, readConfig, resolveEntry, ruleName } from './surface/config.js';
+export type { ServerSpec } from './surface/config.js';
+export { parseDump as parseSurfaceDump, readDump as readSurfaceDump } from './surface/dump.js';
+export { denyFragment, formatHook, formatSurfaceJson, formatSurfaceSarif, formatSurfaceTable } from './surface/format.js';
+export { settingsSnippet } from './surface/hook.js';
+export { buildLock, DEFAULT_LOCK, hashValue, LOCKFILE_VERSION, LockError, parseLock, readLock, serialiseLock, surfaceFromLock, treeHash } from './surface/lockfile.js';
+export type { Lock } from './surface/lockfile.js';
+export { canonicaliseSchema, effectiveHints, normaliseSurface, normaliseText, normaliseTool, SurfaceError } from './surface/normalise.js';
+export type { NormalisedSurface, Part, RawSurface } from './surface/normalise.js';
+export { obtain, verifyConfig, verifyOne, watchConfig } from './surface/ops.js';
+export type { Target } from './surface/ops.js';
+export { changeClassById, SURFACE_RULES } from './surface/rules.js';
+export type { ChangeClass, SurfaceSeverity } from './surface/rules.js';

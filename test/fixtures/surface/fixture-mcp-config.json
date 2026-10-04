@@ -1,0 +1,19 @@
+{
+  "mcpServers": {
+    "files": {
+      "command": "node",
+      "args": ["${MRC_SURFACE_FIXTURE_DIR:-test/fixtures/surface}/fixture-server.mjs"],
+      "env": { "FIXTURE_MODE": "${MRC_SURFACE_FIXTURE_MODE:-unchanged}" }
+    },
+    "paged": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["${MRC_SURFACE_FIXTURE_DIR:-test/fixtures/surface}/fixture-server.mjs"],
+      "env": { "FIXTURE_PAGE_SIZE": "1", "FIXTURE_ERA": "modern" }
+    },
+    "legacy-sse": {
+      "type": "sse",
+      "url": "https://mcp.example.invalid/sse"
+    }
+  }
+}

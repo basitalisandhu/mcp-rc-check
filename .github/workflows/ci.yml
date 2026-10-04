@@ -39,6 +39,9 @@ jobs:
           npx mcp-rc-check --version
           npx mcp-rc-check --help | head -1
           npx mcp-rc-check scan --dump "$GITHUB_WORKSPACE/test/fixtures/fixture-post-revision.json"
+          npx mcp-rc-check surface --help | head -1
+          npx mcp-rc-check surface lock --dump "$GITHUB_WORKSPACE/test/fixtures/surface/fixture-base.json" -o smoke.lock.json
+          npx mcp-rc-check surface verify --lock smoke.lock.json --dump "$GITHUB_WORKSPACE/test/fixtures/surface/fixture-base.json"
 
   container-build:
     name: Build the container image and run it
@@ -58,3 +61,4 @@ jobs:
             echo "expected exit 1 for the pre-revision dump"; exit 1
           fi
           grep -q "legacy-only-server" out.txt
+          docker run --rm mcp-rc-check:ci surface --help | grep "^Usage: mcp-rc-check surface"

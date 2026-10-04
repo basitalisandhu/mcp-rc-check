@@ -1,0 +1,155 @@
+{
+  "serverInfo": {
+    "name": "fixture-files",
+    "version": "1.0.0"
+  },
+  "protocolVersion": "2025-11-25",
+  "instructions": "Use read_file before write_file.",
+  "tools": [
+    {
+      "name": "read_file",
+      "title": "Read file",
+      "description": "Read a file from the workspace and return its text.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "Path relative to the workspace"
+          }
+        },
+        "required": [
+          "path"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "search_files",
+      "description": "Search file names in the workspace.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "pattern": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "pattern"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "matches": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "write_file",
+      "description": "Write text to a file in the workspace.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "text"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "delete_file",
+      "description": "Delete a file from the workspace.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "path"
+        ]
+      },
+      "annotations": {
+        "destructiveHint": true
+      }
+    },
+    {
+      "name": "run_task",
+      "description": "Run a named project task.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "task": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "name": "list_dir",
+      "description": "List a directory.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          }
+        }
+      },
+      "annotations": {
+        "readOnlyHint": true
+      }
+    }
+  ],
+  "prompts": [
+    {
+      "name": "summarise",
+      "description": "Summarise a file",
+      "arguments": [
+        {
+          "name": "path",
+          "required": true
+        }
+      ]
+    }
+  ],
+  "resources": [
+    {
+      "uri": "fixture://readme",
+      "name": "readme",
+      "mimeType": "text/plain"
+    }
+  ],
+  "resourceTemplates": [
+    {
+      "uriTemplate": "fixture://notes/{id}",
+      "name": "note"
+    }
+  ]
+}

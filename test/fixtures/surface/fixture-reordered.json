@@ -1,0 +1,110 @@
+{
+  "resourceTemplates": [
+    {
+      "name": "note",
+      "uriTemplate": "fixture://notes/{id}"
+    }
+  ],
+  "resources": [
+    {
+      "mimeType": "text/plain",
+      "name": "readme",
+      "uri": "fixture://readme"
+    }
+  ],
+  "prompts": [
+    {
+      "arguments": [
+        {
+          "required": true,
+          "name": "path"
+        }
+      ],
+      "description": "Summarise a file",
+      "name": "summarise"
+    }
+  ],
+  "tools": [
+    {
+      "annotations": {
+        "openWorldHint": false,
+        "destructiveHint": false,
+        "readOnlyHint": false
+      },
+      "inputSchema": {
+        "required": [
+          "text",
+          "path"
+        ],
+        "properties": {
+          "text": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "description": "Write text to a file in the workspace.",
+      "name": "write_file"
+    },
+    {
+      "annotations": {
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
+      "outputSchema": {
+        "properties": {
+          "matches": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "inputSchema": {
+        "required": [
+          "pattern"
+        ],
+        "properties": {
+          "pattern": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "description": "Search file names in the workspace.",
+      "name": "search_files"
+    },
+    {
+      "annotations": {
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
+      "inputSchema": {
+        "required": [
+          "path"
+        ],
+        "properties": {
+          "path": {
+            "description": "Path relative to the workspace",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "description": "  Read a file from the workspace\n   and return its text.  ",
+      "title": "Read file",
+      "name": "read_file"
+    }
+  ],
+  "instructions": "Use read_file before write_file.",
+  "protocolVersion": "2025-11-25",
+  "serverInfo": {
+    "version": "1.0.0",
+    "name": "fixture-files"
+  }
+}

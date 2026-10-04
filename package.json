@@ -1,7 +1,7 @@
 {
   "name": "@basitalisandhu/mcp-rc-check",
-  "version": "0.1.0",
-  "description": "MCP specification migration checker: what an MCP server or client must change for the 2026-07-28 revision, with the spec section for each finding and a patch where the fix is mechanical.",
+  "version": "0.2.0",
+  "description": "MCP specification migration checker: what an MCP server or client must change for the 2026-07-28 revision, with the spec section for each finding and a patch where the fix is mechanical; plus tool-surface pinning: lock the tools, schemas, annotations, prompts and resources a server exposes and report what changed before the next session.",
   "license": "MIT",
   "author": "Muhammad Basit Ali",
   "homepage": "https://github.com/basitalisandhu/mcp-rc-check#readme",
@@ -23,7 +23,11 @@
     "compliance",
     "cli",
     "sarif",
-    "developer-tools"
+    "developer-tools",
+    "mcp-security",
+    "pinning",
+    "lockfile",
+    "claude-code"
   ],
   "type": "module",
   "main": "dist/index.js",

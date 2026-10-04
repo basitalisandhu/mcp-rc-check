@@ -1,0 +1,16 @@
+{
+  "mcpRcCheckDump": 1,
+  "source": { "kind": "stdio", "target": "node (+1 argument)" },
+  "era": "legacy",
+  "initialize": {
+    "method": "initialize",
+    "result": { "protocolVersion": "2025-11-25", "capabilities": { "tools": {} }, "serverInfo": { "name": "fixture-files", "version": "1.0.0" } }
+  },
+  "lists": {
+    "tools/list": [
+      { "method": "tools/list", "result": { "tools": [{ "name": "read_file", "description": "Read a file from the workspace and return its text.", "inputSchema": { "type": "object" } }], "nextCursor": "p2" } },
+      { "method": "tools/list", "result": { "tools": [{ "name": "search_files", "description": "Search file names in the workspace.", "inputSchema": { "type": "object" } }] } }
+    ]
+  },
+  "probes": {}
+}

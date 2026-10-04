@@ -6,6 +6,34 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-04
+
+Tool-surface pinning and change detection, folded in from the standalone tool-surface-pin, lifted from an unpublished prototype by the same author. `scan` and `client` are unchanged: same flags, same rules, byte-identical output.
+
+### Added
+
+- `mcp-rc-check surface lock (--stdio | --url | --dump | --config --server) [-o mcp-surface.lock.json] [--require <tool>...]`: record a server's tool surface (every tool with its description, input and output schema and annotations, prompts, resources, resource templates, server instructions and identity) in a deterministic, versioned lock file (`lockfileVersion` 1) with one SHA-256 per entry, a tree hash per component and a surface hash. `--require` marks tools whose removal is HIGH.
+- `surface verify [--lock <file>] (target) [--format table|json|sarif|hook] [--fail-on low|medium|high]`: compare a server with its lock and classify every difference into 19 change classes with fixed severities. HIGH: a changed description or input schema, a new tool not marked read-only, an annotation downgrade, a removed required tool, changed server instructions, a configured server without a lock. MEDIUM: a new read-only tool, an output schema, annotation upgrade, other field, prompt, resource or server name change. LOW: title, ordering, a removed unrequired tool, version changes, a lock without a server.
+- `surface diff <tool>` (also `prompt:<name>`, `resource:<uri>`, `template:<uriTemplate>`): a unified diff of the normalised definition, lock against live.
+- `surface hook`: a Claude Code `SessionStart` block with one exec-form handler per configured server; `verify --format hook` prints `continue: false` with a `stopReason` on a change at or above `--fail-on` (default HIGH) and a `systemMessage` below it. `--format claude-settings` prints a `permissions.deny` fragment for the changed tools instead.
+- `surface watch-config <config>` and `surface verify-config <config>`: one lock per server declared in `.mcp.json`, `~/.claude.json`, Claude Desktop, Cursor or VS Code configurations, read with the same reader as `client`. stdio servers start with a minimal environment plus their own `env` block; `${VAR}` and `${VAR:-default}` are expanded and never printed; every request has a timeout; URLs with credentials are refused; HTTP+SSE servers are skipped.
+- A `covers` field in every lock, so a lock made from a tools-only dump does not report prompts or resources as removed.
+- `surface lock --dump` reads dumps written by `scan --save-dump`, and a lock from such a dump equals a lock from the live server.
+- `docs/surface.md`: commands, lock file schema and hashing, what is normalised, and every change class. Six new good first issues for the surface commands.
+- 108 new tests (231 in total): fixture dumps before and after each change class, a stdio fixture server with an unchanged and a changed mode, lock then verify clean, SARIF, exit codes, `watch-config` and `verify-config`, hook snippet parsing, normalisation stability, and a check that a scan dump and a live lock agree.
+
+### Changed
+
+- The SARIF writer is shared: `scan`, `client` and `surface verify` go through one `sarifLog` function (exported). `scan` and `client` SARIF output is unchanged byte for byte.
+- `StdioTransport` takes an optional working directory, and `parseEndpoint` (exported from the live scan module) is the one place a URL is checked for scheme and credentials.
+- The package version moved to `src/version.ts`; `VERSION` is still exported from the CLI module and now also from the package entry point.
+
+### Adapted from the prototype
+
+- One JSON-RPC client: the prototype's own stdio and HTTP transports are replaced by the ones `scan` uses, and the handshake order is `scan`'s (`server/discover` first, then `initialize`), so dump locks and live locks agree.
+- Client configurations are read by `client`'s reader, which adds `projects.<path>.mcpServers` in `~/.claude.json`, Cursor configurations and `serverUrl` entries.
+- Names: the default lock is `mcp-surface.lock.json`, the lock directory `.mcp-surface`, the lock `generator` is `mcp-rc-check`, and the hook runs `mcp-rc-check surface verify`. The prototype's own dump format and `lock --save-dump` were dropped in favour of `scan --save-dump`.
+
 ## [0.1.0] - 2026-10-04
 
 First release. Published to two registries on GitHub Packages, using only the workflow's `GITHUB_TOKEN`:
@@ -23,5 +51,6 @@ First release. Published to two registries on GitHub Packages, using only the wo
 - Output formats `table`, `json` and `sarif` (SARIF 2.1.0 with the spec section as each rule's `helpUri`); `--fail-on` sets the exit-code threshold.
 - Test suite with pre-revision and post-revision dumps, one fixture per rule family, a stdio fixture server and a loopback HTTP fixture server, byte-for-byte patch checks, CI on Node 22 and 24, a container image published on version tags, and a guarded npmjs release workflow.
 
-[Unreleased]: https://github.com/basitalisandhu/mcp-rc-check/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/basitalisandhu/mcp-rc-check/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/basitalisandhu/mcp-rc-check/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/basitalisandhu/mcp-rc-check/releases/tag/v0.1.0

@@ -1,0 +1,453 @@
+/** `mcp-rc-check surface <subcommand>`: argument parsing and the subcommands. */
+import { existsSync } from 'node:fs';
+import path from 'node:path';
+import { unifiedDiff } from '../diff.js';
+import { VERSION } from '../version.js';
+import { fails, type SurfaceReport } from './compare.js';
+import { lockFileName, readConfig, transportOf } from './config.js';
+import { denyFragment, formatHook, formatSurfaceJson, formatSurfaceSarif, formatSurfaceTable, type SurfaceFormat } from './format.js';
+import { DEFAULT_HOOK_TIMEOUT, DEFAULT_MATCHER, settingsSnippet } from './hook.js';
+import { prettyJson, short } from './json.js';
+import { DEFAULT_LOCK, readLock } from './lockfile.js';
+import { normaliseSurface } from './normalise.js';
+import { isKnownError, makeLock, obtain, supportedTransport, verifyConfig, verifyOne, watchConfig, writeLock, type ConnectOptions, type Target } from './ops.js';
+import { SEVERITIES, SURFACE_RULES, type SurfaceSeverity } from './rules.js';
+
+export const DEFAULT_LOCK_DIR = '.mcp-surface';
+const NAME = 'mcp-rc-check surface';
+
+export const SURFACE_USAGE = `Usage: mcp-rc-check surface <subcommand> [options]
+
+Pin the tool surface of an MCP server: record its tools, schemas, annotations, prompts,
+resources and instructions in a lock file, and report what changed since, before the next session.
+
+Subcommands:
+  lock                     Connect to a server and write its lock file
+  verify                   Compare a server with its lock file
+  diff <tool>              Unified diff of one tool's normalised definition, lock against live
+                           (also prompt:<name>, resource:<uri>, template:<uriTemplate>)
+  hook                     Print a Claude Code SessionStart hook that runs verify for each server
+                           in a client configuration (--format claude-settings: a deny list instead)
+  watch-config <config>    Lock every server in .mcp.json, ~/.claude.json, Cursor or VS Code mcp.json
+  verify-config <config>   Verify every server in a client configuration against its lock
+  rules                    List the change classes and their severities
+
+Targets for lock, verify and diff (exactly one):
+  --stdio "<command>"      Start the server and speak to it over stdio
+  --url <url>              Speak to a Streamable HTTP endpoint
+  --dump <file>            Read a saved tools/list result or a dump from scan --save-dump
+  --config <file> --server <name>
+                           Start one server the way a client configuration declares it
+
+Options:
+  --lock <file>            Lock file for verify and diff (default ${DEFAULT_LOCK})
+  -o, --out <file>         Where lock writes (default ${DEFAULT_LOCK})
+  --require <tool>         lock: mark a tool as required; its removal is HIGH (repeatable)
+  --lock-dir <dir>         One lock per server for watch-config, verify-config and hook
+                           (default ${DEFAULT_LOCK_DIR})
+  -e, --env KEY=VALUE      Environment for a --stdio server (repeatable; only a minimal set is passed otherwise)
+  -H, --header "K: V"      Header for a --url server, for example Authorization (repeatable; never saved)
+  --timeout <ms>           Per-request timeout (default 15000)
+  --max-pages <n>          Stop following a list after n pages (default 100)
+  --format <fmt>           verify: table (default), json, sarif, hook
+                           hook: settings (default), claude-settings
+  --fail-on <severity>     Exit 1 when a change is at or above: low (default), medium, high
+                           (hook: the threshold that stops a session, default high)
+  --strict                 verify --format hook: stop the session when verification itself fails
+  --name <server>          hook --format claude-settings with a single target: the server name for rules
+  --exe <command>          hook: how the hook invokes this tool (default mcp-rc-check)
+  -h, --help               Show this help
+
+Exit codes: 0 no change at or above --fail-on, 1 changes at or above --fail-on (diff: a difference),
+2 usage, connection, configuration or lock file error.
+`;
+
+export class SurfaceUsageError extends Error {}
+
+export interface SurfaceCliOptions {
+  command?: string;
+  positionals: string[];
+  stdio?: string;
+  url?: string;
+  dump?: string;
+  config?: string;
+  server: string[];
+  lock?: string;
+  out?: string;
+  require: string[];
+  lockDir?: string;
+  env: Record<string, string>;
+  headers: Record<string, string>;
+  timeoutMs: number;
+  maxPages?: number;
+  format?: string;
+  failOn?: SurfaceSeverity;
+  strict: boolean;
+  name?: string;
+  exe?: string;
+  help: boolean;
+}
+
+export function parseSurfaceArgs(argv: string[]): SurfaceCliOptions {
+  const o: SurfaceCliOptions = { positionals: [], server: [], require: [], env: {}, headers: {}, timeoutMs: 15_000, strict: false, help: false };
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i]!;
+    const eq = a.startsWith('--') ? a.indexOf('=') : -1;
+    const flag = eq > 0 ? a.slice(0, eq) : a;
+    const inline = eq > 0 ? a.slice(eq + 1) : undefined;
+    const value = (): string => {
+      if (inline !== undefined) return inline;
+      const v = argv[i + 1];
+      if (v === undefined) throw new SurfaceUsageError(`${flag} needs a value`);
+      i++;
+      return v;
+    };
+    switch (flag) {
+      case '-h':
+      case '--help':
+        o.help = true;
+        break;
+      case '--stdio':
+        o.stdio = value();
+        break;
+      case '--url':
+        o.url = value();
+        break;
+      case '--dump':
+        o.dump = value();
+        break;
+      case '--config':
+        o.config = value();
+        break;
+      case '--server':
+        o.server.push(value());
+        break;
+      case '--lock':
+        o.lock = value();
+        break;
+      case '-o':
+      case '--out':
+        o.out = value();
+        break;
+      case '--require':
+        o.require.push(value());
+        break;
+      case '--lock-dir':
+        o.lockDir = value();
+        break;
+      case '-e':
+      case '--env': {
+        const kv = value();
+        const k = kv.indexOf('=');
+        if (k <= 0) throw new SurfaceUsageError('--env expects KEY=VALUE');
+        o.env[kv.slice(0, k)] = kv.slice(k + 1);
+        break;
+      }
+      case '-H':
+      case '--header': {
+        const hv = value();
+        const k = hv.indexOf(':');
+        if (k <= 0) throw new SurfaceUsageError('--header expects "Name: value"');
+        o.headers[hv.slice(0, k).trim()] = hv.slice(k + 1).trim();
+        break;
+      }
+      case '--timeout': {
+        const n = Number(value());
+        if (!Number.isInteger(n) || n <= 0) throw new SurfaceUsageError('--timeout expects a positive number of milliseconds');
+        o.timeoutMs = n;
+        break;
+      }
+      case '--max-pages': {
+        const n = Number(value());
+        if (!Number.isInteger(n) || n <= 0) throw new SurfaceUsageError('--max-pages expects a positive integer');
+        o.maxPages = n;
+        break;
+      }
+      case '--format':
+        o.format = value();
+        break;
+      case '--fail-on': {
+        const s = value();
+        if (!SEVERITIES.includes(s as SurfaceSeverity)) throw new SurfaceUsageError(`--fail-on must be low, medium or high, got ${JSON.stringify(s)}`);
+        o.failOn = s as SurfaceSeverity;
+        break;
+      }
+      case '--strict':
+        o.strict = true;
+        break;
+      case '--name':
+        o.name = value();
+        break;
+      case '--exe':
+        o.exe = value();
+        break;
+      default:
+        if (a.startsWith('-') && a !== '-') throw new SurfaceUsageError(`unknown option ${a}`);
+        if (o.command === undefined) o.command = a;
+        else o.positionals.push(a);
+    }
+  }
+  return o;
+}
+
+export interface Io {
+  stdout: (text: string) => void;
+  stderr: (text: string) => void;
+  cwd: string;
+}
+
+function resolve(io: Io, file: string): string {
+  return path.resolve(io.cwd, file);
+}
+
+function display(io: Io, file: string): string {
+  const rel = path.relative(io.cwd, path.resolve(io.cwd, file));
+  return rel.startsWith('..') || path.isAbsolute(rel) ? path.resolve(io.cwd, file) : rel;
+}
+
+function targetOf(o: SurfaceCliOptions, io: Io): Target {
+  const given = [o.stdio, o.url, o.dump, o.config].filter((t) => t !== undefined).length;
+  if (given !== 1) throw new SurfaceUsageError('give exactly one of --stdio, --url, --dump or --config with --server');
+  if (o.config !== undefined) {
+    if (o.server.length !== 1) throw new SurfaceUsageError('--config needs exactly one --server <name> here');
+    return { kind: 'config', file: resolve(io, o.config), server: o.server[0]! };
+  }
+  if (Object.keys(o.env).length > 0 && o.stdio === undefined) throw new SurfaceUsageError('--env only applies to --stdio');
+  if (Object.keys(o.headers).length > 0 && o.url === undefined) throw new SurfaceUsageError('--header only applies to --url');
+  if (o.stdio !== undefined) return { kind: 'stdio', command: o.stdio, env: o.env };
+  if (o.url !== undefined) return { kind: 'http', url: o.url, headers: o.headers };
+  return { kind: 'dump', file: resolve(io, o.dump!) };
+}
+
+function hasTarget(o: SurfaceCliOptions): boolean {
+  return [o.stdio, o.url, o.dump].some((t) => t !== undefined) || (o.config !== undefined && o.server.length === 1);
+}
+
+function connectOptions(o: SurfaceCliOptions): ConnectOptions {
+  return { timeoutMs: o.timeoutMs, clientVersion: VERSION, stderr: true, ...(o.maxPages ? { maxPages: o.maxPages } : {}) };
+}
+
+function verifyFormat(o: SurfaceCliOptions): SurfaceFormat {
+  const f = o.format ?? 'table';
+  if (f !== 'table' && f !== 'json' && f !== 'sarif' && f !== 'hook') throw new SurfaceUsageError(`--format must be table, json, sarif or hook, got ${JSON.stringify(f)}`);
+  return f;
+}
+
+function render(report: SurfaceReport, format: SurfaceFormat, o: SurfaceCliOptions, io: Io, failOn: SurfaceSeverity): string {
+  if (format === 'json') return formatSurfaceJson(report, VERSION);
+  if (format === 'hook') return formatHook(report, failOn, o.strict);
+  if (format === 'sarif') {
+    const lockUris = Object.fromEntries(report.servers.filter((s) => s.lock).map((s) => [s.name, display(io, s.lock!).split(path.sep).join('/')]));
+    return formatSurfaceSarif(report, { toolVersion: VERSION, artifactUri: display(io, report.target).split(path.sep).join('/'), lockUris });
+  }
+  return formatSurfaceTable({ ...report, target: display(io, report.target) });
+}
+
+/** Report an error that stops verification: as hook JSON when asked for it, else on stderr with exit 2. */
+function verificationError(error: Error, format: SurfaceFormat, o: SurfaceCliOptions, io: Io, failOn: SurfaceSeverity): number {
+  if (format === 'hook') {
+    io.stdout(formatHook({ target: '', servers: [], changes: [], errors: [error.message] }, failOn, o.strict));
+    return 0;
+  }
+  io.stderr(`${NAME}: ${error.message}\n`);
+  return 2;
+}
+
+async function cmdLock(o: SurfaceCliOptions, io: Io): Promise<number> {
+  const target = targetOf(o, io);
+  const out = resolve(io, o.out ?? o.lock ?? DEFAULT_LOCK);
+  const obtained = await obtain(target, connectOptions(o));
+  const lock = makeLock(obtained, out, o.require, VERSION);
+  writeLock(lock, out);
+  const n = (m: object): number => Object.keys(m).length;
+  const who = [lock.server.name, lock.server.version].filter(Boolean).join(' ') || 'unnamed server';
+  io.stdout(
+    `${NAME} ${VERSION}: locked ${who} (${obtained.source.kind}: ${obtained.source.target}) into ${display(io, out)}\n` +
+      `  protocol ${lock.protocolVersion ?? '-'}, ${n(lock.tools)} tool(s), ${n(lock.prompts)} prompt(s), ${n(lock.resources)} resource(s), ${n(lock.resourceTemplates)} template(s)\n` +
+      `  covers ${lock.covers.join(', ')}; surface ${short(lock.surfaceHash)}\n` +
+      Object.entries(lock.tools)
+        .map(([name, t]) => `  ${name.padEnd(28)} ${short(t.hash)}${t.required ? '  required' : ''}\n`)
+        .join(''),
+  );
+  return 0;
+}
+
+async function cmdVerify(o: SurfaceCliOptions, io: Io): Promise<number> {
+  const format = verifyFormat(o);
+  const failOn = o.failOn ?? (format === 'hook' ? 'high' : 'low');
+  const lockFile = resolve(io, o.lock ?? DEFAULT_LOCK);
+  let report: SurfaceReport;
+  try {
+    report = await verifyOne(lockFile, targetOf(o, io), connectOptions(o));
+  } catch (error) {
+    if (!isKnownError(error)) throw error;
+    return verificationError(error, format, o, io, failOn);
+  }
+  io.stdout(render(report, format, o, io, failOn));
+  if (format === 'hook') return 0;
+  return fails(report, failOn) ? 1 : 0;
+}
+
+async function cmdVerifyConfig(o: SurfaceCliOptions, io: Io): Promise<number> {
+  const format = verifyFormat(o);
+  const failOn = o.failOn ?? (format === 'hook' ? 'high' : 'low');
+  const config = o.positionals[0] ?? o.config;
+  if (!config) throw new SurfaceUsageError('verify-config needs a configuration file');
+  let report: SurfaceReport;
+  try {
+    report = await verifyConfig(resolve(io, config), resolve(io, o.lockDir ?? DEFAULT_LOCK_DIR), connectOptions(o), o.server);
+  } catch (error) {
+    if (!isKnownError(error)) throw error;
+    return verificationError(error, format, o, io, failOn);
+  }
+  report.target = display(io, report.target);
+  io.stdout(render(report, format, o, io, failOn));
+  if (format === 'hook') return 0;
+  if (report.errors.length > 0) return 2;
+  return fails(report, failOn) ? 1 : 0;
+}
+
+async function cmdWatchConfig(o: SurfaceCliOptions, io: Io): Promise<number> {
+  const config = o.positionals[0] ?? o.config;
+  if (!config) throw new SurfaceUsageError('watch-config needs a configuration file');
+  const lockDir = resolve(io, o.lockDir ?? DEFAULT_LOCK_DIR);
+  const results = await watchConfig(resolve(io, config), lockDir, connectOptions(o), VERSION, o.server);
+  const lines = [`${NAME} ${VERSION} watch-config: ${display(io, config)} -> ${display(io, lockDir)}/`];
+  if (results.length === 0) lines.push('  no servers declared');
+  for (const r of results) {
+    const detail = r.status === 'locked' ? `${String(r.tools).padStart(3)} tool(s)  ${short(r.surfaceHash)}  ${display(io, r.lock!)}` : r.detail;
+    lines.push(`  ${r.name.padEnd(24)} ${r.status.padEnd(8)} ${detail}`);
+  }
+  const failed = results.filter((r) => r.status === 'failed').length;
+  const locked = results.filter((r) => r.status === 'locked').length;
+  lines.push('', `${locked} locked, ${results.length - locked - failed} skipped, ${failed} failed`);
+  io.stdout(lines.join('\n') + '\n');
+  return failed > 0 ? 2 : 0;
+}
+
+async function cmdDiff(o: SurfaceCliOptions, io: Io): Promise<number> {
+  const subject = o.positionals[0];
+  if (!subject) throw new SurfaceUsageError('diff needs a tool name (or prompt:<name>, resource:<uri>, template:<uriTemplate>)');
+  const lockFile = resolve(io, o.lock ?? DEFAULT_LOCK);
+  const lock = readLock(lockFile);
+  const cur = normaliseSurface((await obtain(targetOf(o, io), connectOptions(o))).raw);
+  const pick = (s: string): [unknown, unknown] => {
+    for (const [prefix, key] of [
+      ['prompt:', 'prompts'],
+      ['resource:', 'resources'],
+      ['template:', 'resourceTemplates'],
+    ] as const) {
+      if (s.startsWith(prefix)) {
+        const id = s.slice(prefix.length);
+        return [lock[key][id]?.definition, cur[key][id]];
+      }
+    }
+    return [lock.tools[s]?.definition, cur.tools[s]];
+  };
+  const [before, after] = pick(subject);
+  if (before === undefined && after === undefined) {
+    io.stderr(`${NAME}: ${JSON.stringify(subject)} is neither in the lock nor on the server\n`);
+    return 2;
+  }
+  const text = (v: unknown): string => (v === undefined ? '' : prettyJson(v));
+  const patch = unifiedDiff(text(before), text(after), before === undefined ? '/dev/null' : `a/${subject} (locked)`, after === undefined ? '/dev/null' : `b/${subject} (live)`);
+  if (patch === '') {
+    io.stdout(`${subject}: no change\n`);
+    return 0;
+  }
+  io.stdout(patch);
+  return 1;
+}
+
+async function cmdHook(o: SurfaceCliOptions, io: Io): Promise<number> {
+  const format = o.format ?? 'settings';
+  if (format !== 'settings' && format !== 'claude-settings') throw new SurfaceUsageError(`hook --format must be settings or claude-settings, got ${JSON.stringify(format)}`);
+  const failOn = o.failOn ?? 'high';
+  if (format === 'claude-settings') {
+    const single = [o.stdio, o.url, o.dump].some((t) => t !== undefined) || (o.config !== undefined && o.server.length === 1 && o.lock !== undefined);
+    let report: SurfaceReport;
+    if (single) {
+      const lockFile = resolve(io, o.lock ?? DEFAULT_LOCK);
+      report = await verifyOne(lockFile, targetOf(o, io), connectOptions(o));
+      const name = o.name ?? (o.server.length === 1 ? o.server[0]! : readLock(lockFile).server.name);
+      if (!name) throw new SurfaceUsageError('the lock has no server name; pass --name <server> as it appears in your client configuration');
+      io.stdout(denyFragment(report, o.failOn ?? 'low', name));
+    } else {
+      report = await verifyConfig(resolve(io, o.config ?? '.mcp.json'), resolve(io, o.lockDir ?? DEFAULT_LOCK_DIR), connectOptions(o), o.server);
+      io.stdout(denyFragment(report, o.failOn ?? 'low', 'server'));
+      for (const e of report.errors) io.stderr(`${NAME}: ${e}\n`);
+    }
+    return report.errors.length > 0 ? 2 : 0;
+  }
+  if (hasTarget(o) && o.config === undefined) throw new SurfaceUsageError('hook reads the servers from a client configuration; use --config <file> (default .mcp.json)');
+  const config = resolve(io, o.config ?? '.mcp.json');
+  const lockDir = resolve(io, o.lockDir ?? DEFAULT_LOCK_DIR);
+  const all = readConfig(config).filter((e) => o.server.length === 0 || o.server.includes(e.name));
+  const entries = all.filter((e) => supportedTransport(transportOf(e.entry)));
+  for (const e of all) if (!entries.includes(e)) io.stderr(`${NAME}: skipping ${e.name}: the ${transportOf(e.entry)} transport is not supported\n`);
+  if (entries.length === 0) throw new SurfaceUsageError(`${display(io, config)} declares no servers to verify`);
+  const servers = entries.map((e) => ({ name: e.name, lock: path.join(lockDir, lockFileName(e.name)) }));
+  const snippet = settingsSnippet({ exe: o.exe ?? 'mcp-rc-check', config, servers, failOn, timeout: DEFAULT_HOOK_TIMEOUT, matcher: DEFAULT_MATCHER });
+  io.stdout(JSON.stringify(snippet, null, 2) + '\n');
+  const missing = servers.filter((s) => !existsSync(s.lock));
+  if (missing.length > 0) {
+    io.stderr(`${NAME}: no lock yet for ${missing.map((s) => s.name).join(', ')}; run \`${NAME} watch-config ${display(io, config)}\` first or every session will stop\n`);
+  }
+  io.stderr(`${NAME}: merge the block above into the "hooks" of ~/.claude/settings.json or .claude/settings.json\n`);
+  return 0;
+}
+
+function cmdRules(o: SurfaceCliOptions, io: Io): number {
+  if (o.format === 'json') {
+    io.stdout(JSON.stringify(SURFACE_RULES, null, 2) + '\n');
+    return 0;
+  }
+  const w = Math.max(...SURFACE_RULES.map((r) => r.id.length));
+  io.stdout(['severity  id'.padEnd(w + 10) + '  title', ...SURFACE_RULES.map((r) => `${r.severity.padEnd(8)}  ${r.id.padEnd(w)}  ${r.title}`)].join('\n') + '\n');
+  return 0;
+}
+
+/** Entry point for `mcp-rc-check surface ...`; `argv` excludes the word "surface". */
+export async function surfaceMain(argv: string[], io: Io): Promise<number> {
+  let o: SurfaceCliOptions;
+  try {
+    o = parseSurfaceArgs(argv);
+  } catch (error) {
+    io.stderr(`${NAME}: ${(error as Error).message}\n\n${SURFACE_USAGE}`);
+    return 2;
+  }
+  if (o.help || o.command === undefined) {
+    io.stdout(SURFACE_USAGE);
+    return o.help ? 0 : 2;
+  }
+  try {
+    switch (o.command) {
+      case 'lock':
+        return await cmdLock(o, io);
+      case 'verify':
+        return await cmdVerify(o, io);
+      case 'verify-config':
+        return await cmdVerifyConfig(o, io);
+      case 'watch-config':
+        return await cmdWatchConfig(o, io);
+      case 'diff':
+        return await cmdDiff(o, io);
+      case 'hook':
+        return await cmdHook(o, io);
+      case 'rules':
+        return cmdRules(o, io);
+      default:
+        throw new SurfaceUsageError(`unknown subcommand ${JSON.stringify(o.command)}`);
+    }
+  } catch (error) {
+    if (error instanceof SurfaceUsageError) {
+      io.stderr(`${NAME}: ${error.message}\n\n${SURFACE_USAGE}`);
+      return 2;
+    }
+    if (isKnownError(error)) {
+      io.stderr(`${NAME}: ${error.message}\n`);
+      return 2;
+    }
+    throw error;
+  }
+}

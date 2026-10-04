@@ -9,6 +9,7 @@ const DEFAULT_ENV_KEYS =
     ? ['APPDATA', 'HOMEDRIVE', 'HOMEPATH', 'LOCALAPPDATA', 'PATH', 'PROCESSOR_ARCHITECTURE', 'SYSTEMDRIVE', 'SYSTEMROOT', 'TEMP', 'USERNAME', 'USERPROFILE', 'PROGRAMFILES']
     : ['HOME', 'LOGNAME', 'PATH', 'SHELL', 'TERM', 'USER', 'TMPDIR', 'LANG'];
 
+/** The minimal environment: a fixed list of variables copied from this process, nothing else. */
 export function defaultEnvironment(): Record<string, string> {
   const env: Record<string, string> = {};
   for (const key of DEFAULT_ENV_KEYS) {
@@ -33,9 +34,9 @@ export class StdioTransport implements Transport {
   private exited: string | undefined;
   readonly stderrTail: string[] = [];
 
-  constructor(command: string, args: string[], env: Record<string, string>) {
+  constructor(command: string, args: string[], env: Record<string, string>, cwd?: string) {
     try {
-      this.child = spawn(command, args, { env, stdio: ['pipe', 'pipe', 'pipe'] });
+      this.child = spawn(command, args, { env, ...(cwd !== undefined ? { cwd } : {}), stdio: ['pipe', 'pipe', 'pipe'] });
     } catch (error) {
       throw new ConnectionError(`cannot start ${command}: ${(error as Error).message}`, { cause: error });
     }

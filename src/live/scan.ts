@@ -161,15 +161,24 @@ export async function scanStdio(command: string, options: LiveOptions): Promise<
   }
 }
 
-export async function scanHttp(rawUrl: string, options: LiveOptions): Promise<Dump> {
+/**
+ * Parse and check an endpoint URL: http or https only, and no credentials in it. The error for an
+ * unparsable URL quotes it only when `quote` is set, since a URL that fails to parse may still carry a secret.
+ */
+export function parseEndpoint(rawUrl: string, quote = true): URL {
   let url: URL;
   try {
     url = new URL(rawUrl);
   } catch {
-    throw new ConnectionError(`invalid URL ${JSON.stringify(rawUrl)}`);
+    throw new ConnectionError(quote ? `invalid URL ${JSON.stringify(rawUrl)}` : 'invalid URL');
   }
   if (url.protocol !== 'http:' && url.protocol !== 'https:') throw new ConnectionError(`unsupported URL scheme ${url.protocol}`);
   if (url.username || url.password) throw new ConnectionError('the URL contains credentials; pass them with -H "Authorization: ..." instead');
+  return url;
+}
+
+export async function scanHttp(rawUrl: string, options: LiveOptions): Promise<Dump> {
+  const url = parseEndpoint(rawUrl);
   const t = new HttpTransport(url, options.headers ?? {});
   try {
     return await runScan(t, { kind: 'http', target: describeUrl(url) }, options);

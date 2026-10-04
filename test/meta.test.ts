@@ -35,7 +35,7 @@ describe('fixtures', () => {
   it('are named so common ignore patterns cannot hide them', () => {
     const dir = path.join(ROOT, 'test', 'fixtures');
     for (const name of readdirSync(dir)) {
-      if (name === 'expected') continue;
+      if (name === 'expected' || name === 'surface') continue;
       expect(name).toMatch(/^fixture-[a-z0-9-]+\.(json|mjs)$/);
     }
   });

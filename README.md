@@ -16,6 +16,7 @@ mcp-rc-check answers that. It is for people who maintain an MCP server or SDK in
 - `scan --dump <file>` checks a saved dump instead: one written by `--save-dump`, or a plain `tools/list`, `server/discover` or `initialize` result.
 - `client --config <file>` checks a Claude Code, Cursor or VS Code MCP configuration for static headers and transports the revision breaks.
 - Every finding carries a rule id, a severity, the spec section URL, what to change, and whether `--fix` can write it. `--fix` writes a unified diff for the input file; it never edits in place.
+- `surface lock` and `surface verify` pin a server's tool surface (tools, schemas, annotations, prompts, resources and instructions) in a lock file and report what changed since you reviewed it, with a Claude Code `SessionStart` hook that stops a session on a HIGH change. See [Pin the tool surface](#pin-the-tool-surface).
 
 Output is `table` (default), `json` or `sarif`; the command exits 1 when a finding reaches `--fail-on`. TypeScript, Node 22 or newer, no runtime dependencies.
 
@@ -36,7 +37,7 @@ Point the `@basitalisandhu` scope at GitHub Packages in `~/.npmrc` (GitHub's npm
 
 ```bash
 npx @basitalisandhu/mcp-rc-check scan --dump tools.json     # run without installing
-npm install -g @basitalisandhu/mcp-rc-check@0.1.0           # or install the mcp-rc-check command
+npm install -g @basitalisandhu/mcp-rc-check@0.2.0           # or install the mcp-rc-check command
 ```
 
 ### Container image
@@ -44,8 +45,8 @@ npm install -g @basitalisandhu/mcp-rc-check@0.1.0           # or install the mcp
 The image runs as the non-root `node` user with `/work` as the working directory; mount the files to check there:
 
 ```bash
-docker run --rm -v "$PWD:/work" ghcr.io/basitalisandhu/mcp-rc-check:0.1.0 scan --dump dump.json
-docker run --rm ghcr.io/basitalisandhu/mcp-rc-check:0.1.0 scan --url https://mcp.example.com/mcp
+docker run --rm -v "$PWD:/work" ghcr.io/basitalisandhu/mcp-rc-check:0.2.0 scan --dump dump.json
+docker run --rm ghcr.io/basitalisandhu/mcp-rc-check:0.2.0 scan --url https://mcp.example.com/mcp
 ```
 
 ## Quickstart
@@ -106,12 +107,108 @@ and `--fix` writes:
 +          }
 ```
 
+## Pin the tool surface
+
+`scan` checks a server against the specification. `surface` checks the server against itself: it records what you reviewed and tells you, before the next session, whether the tools changed. A changed description, a new parameter, a new tool that is not marked read-only, or a `readOnlyHint` that flipped all change what a session can do, and nothing in the MCP handshake pins what you approved.
+
+```bash
+# Review the server, then lock its surface (writes mcp-surface.lock.json)
+mcp-rc-check surface lock --stdio "node build/server.js" --require read_file
+
+# Later, or in CI: what changed since the lock? Exit 1 on any change, or only on HIGH
+mcp-rc-check surface verify --stdio "node build/server.js"
+mcp-rc-check surface verify --stdio "node build/server.js" --fail-on high --format sarif > surface.sarif
+
+# Read one change as a unified diff of the normalised definition
+mcp-rc-check surface diff read_file --stdio "node build/server.js"
+
+# Every server in a client configuration: one lock each under .mcp-surface/
+mcp-rc-check surface watch-config .mcp.json
+mcp-rc-check surface verify-config .mcp.json
+
+# A dump saved by scan locks to the same surface as the live server
+mcp-rc-check scan --stdio "node build/server.js" --save-dump rc-dump.json
+mcp-rc-check surface lock --dump rc-dump.json
+```
+
+Against the test fixture server, locked and then switched to its changed mode, `surface verify` prints:
+
+```
+mcp-rc-check surface verify: mcp-surface.lock.json
+
+HIGH   tool-description-changed   read_file    description changed (51 to 76 characters); see `mcp-rc-check surface diff read_file`
+HIGH   tool-input-schema-changed  read_file    inputSchema changed
+HIGH   tool-added-unsafe          delete_file  new tool (marked destructiveHint: true)
+
+3 high, 0 medium, 0 low
+Review with `mcp-rc-check surface diff <tool>`; accept a reviewed change by running `mcp-rc-check surface lock` again.
+```
+
+### The Claude Code hook
+
+`surface hook` prints a `SessionStart` block, one exec-form handler per server in `.mcp.json`, to merge into the `hooks` of `~/.claude/settings.json` or `.claude/settings.json`:
+
+```bash
+mcp-rc-check surface watch-config .mcp.json      # lock first, or every session stops on "no lock"
+mcp-rc-check surface hook --config .mcp.json     # prints the block below
+```
+
+```json
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "mcp-rc-check",
+            "args": ["surface", "verify", "--strict", "--format", "hook", "--fail-on", "high", "--config", "/repo/.mcp.json", "--server", "files", "--lock", "/repo/.mcp-surface/files.lock.json"],
+            "timeout": 30,
+            "statusMessage": "mcp-rc-check: verifying the tools of MCP server files"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+On a HIGH change the handler prints `{"continue": false, "stopReason": "..."}`, which stops the session with the reason; changes below the threshold become a `systemMessage` warning, and a clean run prints nothing. `surface hook --format claude-settings` prints a `permissions.deny` fragment naming the changed tools instead, for when you would rather keep the session and block only those tools.
+
+### Change classes
+
+| Class | Severity | What changed |
+| --- | --- | --- |
+| `tool-description-changed` | HIGH | The description of a locked tool changed |
+| `tool-input-schema-changed` | HIGH | The input schema of a locked tool changed |
+| `tool-added-unsafe` | HIGH | A new tool that is not marked read-only |
+| `tool-annotation-downgrade` | HIGH | A locked tool lost a safety hint |
+| `tool-removed-required` | HIGH | A tool the lock marks as required is gone |
+| `server-instructions-changed` | HIGH | The server instructions changed |
+| `server-unlocked` | HIGH | A configured server has no lock |
+| `tool-added-readonly` | MEDIUM | A new tool marked read-only |
+| `tool-output-schema-changed` | MEDIUM | The output schema of a locked tool changed |
+| `tool-annotation-changed` | MEDIUM | Another annotation of a locked tool changed |
+| `tool-other-field-changed` | MEDIUM | Another field of a locked tool changed |
+| `prompt-changed` | MEDIUM | A prompt was added, removed or changed |
+| `resource-changed` | MEDIUM | A resource or resource template was added, removed or changed |
+| `server-identity-changed` | MEDIUM | The server reports a different name |
+| `tool-title-changed` | LOW | The display title of a locked tool changed |
+| `tool-order-changed` | LOW | The tools are listed in a different order |
+| `tool-removed` | LOW | A tool is gone |
+| `server-version-changed` | LOW | The server reports a different version or protocol version |
+| `server-removed` | LOW | A locked server is no longer configured |
+
+A lock records which parts it `covers`, so a lock made from a bare `tools/list` result never reports prompts or resources as removed. [docs/surface.md](docs/surface.md) has the lock file schema and hashing, what is normalised before comparing (key order, ASCII whitespace runs, `required` order, `_meta`) and what deliberately is not (every non-ASCII character), and each class in detail.
+
 ## When to use this
 
 - **Is my server ready for 2026-07-28?** `scan --stdio` or `scan --url` reports the era it detected (legacy, modern or dual-era) and every rule it fails, with the section to read.
 - **What exactly do I change?** Each finding names the change; `--fix` writes the mechanical part (resultType, cache hints, server identity in `_meta`, a missing root `type`) as a patch you review.
 - **Will my client config break against updated servers?** `client --config` finds pinned `MCP-Protocol-Version`, static `Mcp-Method`, `Mcp-Name`, `Mcp-Param-*`, `Mcp-Session-Id` and `Last-Event-ID` headers, and SSE transports.
 - **Can CI keep it from regressing?** Save a dump once, then run `scan --dump` (or a live scan of a test server) with `--format sarif` in CI.
+- **Did the server change since I approved it?** `surface verify` against a lock, or the `SessionStart` hook from `surface hook`, reports changed descriptions and schemas, new tools and annotation downgrades before the next session.
 - **Is my HTTP endpoint validating the new headers?** A live `--url` scan sends a mismatched `MCP-Protocol-Version`, a request without `Mcp-Method`, an unknown method and a `GET`, and checks the status codes and error codes the transport page requires.
 
 ## Rules
@@ -176,13 +273,20 @@ The revision allows an explicit `$schema` and only requires implementations to s
 **Can it check OAuth?**
 Not here. The authorization changes in this revision (validating `iss`, `application_type` during registration, issuer-bound credentials, Client ID Metadata Documents) live in the client's OAuth code and the authorization server. Use [mcp-auth-doctor](https://github.com/basitalisandhu/mcp-auth-doctor) for the server side.
 
+**Why does tool-surface pinning live in a spec checker instead of a separate tool?**
+Several standalone tools already pin MCP tool definitions against rug pulls, so another one would add little. What they do not do is share a client, a dump format and a CI step with a specification checker. Here one `scan --save-dump` feeds both `scan --dump` and `surface lock --dump`, one JSON-RPC client and one SARIF writer serve both, and one install covers "does this server follow the revision" and "is it still the server I reviewed".
+
+**Does `surface` call tools?**
+No. It sends `server/discover` (or `initialize`) and the four list requests, nothing else: no tool call, no prompt fetch, no resource read, and none of the probes `scan` sends.
+
 **Are my credentials safe?**
-Headers given with `-H` are sent only to the URL you name and never written to a dump. A URL with embedded credentials is refused. A stdio server gets a minimal environment plus what you pass with `-e`. Findings never echo header values other than protocol versions. A `--fix` patch includes three lines of context from your file, so read it before sharing.
+Headers given with `-H` are sent only to the URL you name and never written to a dump. A URL with embedded credentials is refused. A stdio server gets a minimal environment plus what you pass with `-e`; a server started from a client configuration gets the minimal environment plus its own `env` block, and errors name an unset variable, never a value. Locks record the stdio program name and argument count, never the arguments. Findings never echo header values other than protocol versions. A `--fix` patch includes three lines of context from your file, so read it before sharing.
 
 ## What this is not
 
 - **It is not a conformance test suite.** It checks the constructs this revision changed or deprecated, through read-only requests and saved dumps. It does not call tools, run multi round-trip flows, or exercise OAuth.
 - **It is not an SDK or a migration tool that rewrites code.** It tells you what to change and patches JSON where the change is mechanical; your handler code is yours to update.
+- **`surface` does not watch behaviour.** It compares tool definitions. A server that keeps its definitions and changes what a tool does when called is out of its reach.
 - **It does not invent requirements.** Where the specification text is a SHOULD, a deprecation, or leaves room, the rule is advisory and says why.
 
 ## Development
@@ -193,7 +297,7 @@ npm test            # builds, then runs vitest against fixture dumps and fixture
 npm run typecheck
 ```
 
-The tests use fixture dumps, fixture client configurations, a stdio fixture server (`test/fixtures/fixture-server.mjs`) and an HTTP fixture server on 127.0.0.1; nothing reaches the network. See [CONTRIBUTING.md](CONTRIBUTING.md), [docs/rules.md](docs/rules.md), [docs/good-first-issues.md](docs/good-first-issues.md) and [SECURITY.md](SECURITY.md).
+The tests use fixture dumps, fixture client configurations, stdio fixture servers (`test/fixtures/fixture-server.mjs`, and `test/fixtures/surface/fixture-server.mjs` with an unchanged and a changed mode) and HTTP fixture servers on 127.0.0.1; nothing reaches the network. See [CONTRIBUTING.md](CONTRIBUTING.md), [docs/rules.md](docs/rules.md), [docs/surface.md](docs/surface.md), [docs/good-first-issues.md](docs/good-first-issues.md) and [SECURITY.md](SECURITY.md).
 
 ## Related projects
 

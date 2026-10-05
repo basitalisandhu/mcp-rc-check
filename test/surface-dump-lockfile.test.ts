@@ -1,10 +1,62 @@
-import { readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { parseDump, readDump } from '../src/surface/dump.js';
 import { LockError, parseLock, readLock, serialiseLock, treeHash } from '../src/surface/lockfile.js';
 import { normaliseSurface, SurfaceError } from '../src/surface/normalise.js';
-import { fixture, lockOf, readJson, tmpDir } from './surface-helpers.js';
+import { fixture, lockOf, readJson, runMain, tmpDir } from './surface-helpers.js';
+
+describe('lock freshness check', () => {
+  it('checks a fresh lock without writing, including required marks', async () => {
+    const dir = tmpDir();
+    const out = path.join(dir, 'lock.json');
+    const args = ['lock', '--dump', fixture('fixture-base.json'), '--out', out];
+    expect((await runMain([...args, '--require', 'write_file'])).code).toBe(0);
+    const bytes = readFileSync(out);
+    const mtime = statSync(out).mtimeMs;
+    expect((await runMain([...args, '--check'])).code).toBe(0);
+    expect(readFileSync(out)).toEqual(bytes);
+    expect(statSync(out).mtimeMs).toBe(mtime);
+    expect(readdirSync(dir)).toEqual(['lock.json']);
+  });
+
+  it('reports stale bytes without rewriting even when the parsed lock is unchanged', async () => {
+    const out = path.join(tmpDir(), 'lock.json');
+    const args = ['lock', '--dump', fixture('fixture-base.json'), '--out', out];
+    expect((await runMain(args)).code).toBe(0);
+    const stale = JSON.stringify(JSON.parse(readFileSync(out, 'utf8')));
+    writeFileSync(out, stale);
+    const result = await runMain([...args, '--check']);
+    expect(result.code).toBe(1);
+    expect(result.stderr.trim().split('\n')).toHaveLength(1);
+    expect(result.stderr).toMatch(/stale/);
+    expect(readFileSync(out, 'utf8')).toBe(stale);
+  });
+
+  it('reports a missing lock without creating its parent directory', async () => {
+    const dir = path.join(tmpDir(), 'absent');
+    const result = await runMain(['lock', '--dump', fixture('fixture-base.json'), '--out', path.join(dir, 'lock.json'), '--check']);
+    expect(result.code).toBe(2);
+    expect(result.stderr).toMatch(/missing/);
+    expect(existsSync(dir)).toBe(false);
+  });
+
+  it('detects a changed surface from a different fixture without writing', async () => {
+    const out = path.join(tmpDir(), 'lock.json');
+    expect((await runMain(['lock', '--dump', fixture('fixture-base.json'), '--out', out])).code).toBe(0);
+    const before = readFileSync(out);
+    const result = await runMain(['lock', '--dump', fixture('fixture-pages.json'), '--out', out, '--check']);
+    expect(result.code).toBe(1);
+    expect(readFileSync(out)).toEqual(before);
+  });
+
+  it('rejects --check outside lock and reports unreadable destinations', async () => {
+    expect((await runMain(['rules', '--check'])).code).toBe(2);
+    const result = await runMain(['lock', '--dump', fixture('fixture-base.json'), '--out', tmpDir(), '--check']);
+    expect(result.code).toBe(2);
+    expect(result.stderr).toMatch(/cannot read lock/);
+  });
+});
 
 describe('dump shapes', () => {
   it('reads a tools/list result with metadata', () => {

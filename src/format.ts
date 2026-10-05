@@ -34,6 +34,11 @@ export function formatTable(report: Report): string {
   return lines.join('\n') + '\n';
 }
 
+/** Escape a value for a Markdown table cell, where a raw pipe or newline would break the row. */
+function cell(value: string): string {
+  return value.replace(/\\/g, '\\\\').replace(/\|/g, '\\|').replace(/\r?\n/g, ' ');
+}
+
 export function formatMarkdown(report: Report): string {
   const lines: string[] = [];
   lines.push(`mcp-rc-check ${report.mode === 'server' ? 'scan' : 'client'}: ${report.target}`);
@@ -51,9 +56,7 @@ export function formatMarkdown(report: Report): string {
     const rule = ruleById(f.ruleId);
     const ruleLink = rule?.section ? `[${f.ruleId}](${rule.section})` : f.ruleId;
     const severity = LABEL[f.severity];
-    const subject = f.subject.replace(/\\\|/g, '\\\\|');
-    const message = f.message.replace(/\\\|/g, '\\\\|');
-    lines.push(`| ${severity} | ${ruleLink} | ${subject} | ${message} |`);
+    lines.push(`| ${severity} | ${ruleLink} | ${cell(f.subject)} | ${cell(f.message)} |`);
   }
   const s = report.summary;
   const fixable = report.findings.filter((f) => f.fix).length;
@@ -150,7 +153,7 @@ export function formatSarif(report: Report, options: SarifOptions): string {
 export function formatRules(format: Format): string {
   if (format === 'json') return JSON.stringify(allRules, null, 2) + '\n';
   if (format === 'markdown') {
-    const lines = ['| Rule | Side | Severity | Fix | Spec section |', '| --- | --- | --- | --- | --- |'];
+    const lines = ['| Rule | Side | Severity | Fix | Advisory | Spec section |', '| --- | --- | --- | --- | --- | --- |'];
     for (const r of allRules) {
       const fixText = r.autofix ? 'autofix' : '';
       const advisoryText = r.advisory ? 'advisory' : '';

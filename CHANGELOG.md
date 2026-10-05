@@ -6,6 +6,11 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- `--format markdown` output for `scan`, `client` and `rules`: a heading with the target and era, a table of
+  severity, rule id (linked to its specification section), subject and message, then the summary line.
+
 ### Fixed
 
 - `cache-hints-missing` and `result-type-missing` now check the repeated `tools/list` result recorded as `toolsRepeat`, which the dump normaliser stores outside `view.results`. A second listing that omits `ttlMs`, `cacheScope` or `resultType` is reported at `/toolsRepeat/result`. Those findings carry no autofix: the first `tools/list` page remains the only page an autofix rewrites.
@@ -26,10 +31,6 @@ First release. Published to two registries on GitHub Packages, using only the wo
 - `--fix` writes a unified diff for the JSON input (never edits in place) for mechanical changes: `resultType`, conservative cache hints, server identity in `_meta`, and removal of static protocol headers from client configurations.
 - Output formats `table`, `json` and `sarif` (SARIF 2.1.0 with the spec section as each rule's `helpUri`); `--fail-on` sets the exit-code threshold.
 - Test suite with pre-revision and post-revision dumps, one fixture per rule family, a stdio fixture server and an HTTP fixture server on 127.0.0.1; nothing reaches the network. CI on Node 22 and 24, a container image published on version tags, and a guarded npmjs release workflow.
-
-## Added
-
-- `--format markdown` output for CI and pull-request summaries.
 
 [Unreleased]: https://github.com/basitalisandhu/mcp-rc-check/compare/v0.1.0...HEAD
 [0.1.0]: https://github.com/basitalisandhu/mcp-rc-check/releases/tag/v0.1.0

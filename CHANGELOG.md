@@ -6,6 +6,11 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- `surface lock --check`: compare the generated lock byte for byte without writing;
+  exit 0 for a match, 1 for a stale lock and 2 for a missing or unreadable lock.
+
 ## [0.2.0] - 2026-10-04
 
 Tool-surface pinning and change detection, folded in from the standalone tool-surface-pin, lifted from an unpublished prototype by the same author. `scan` and `client` are unchanged: same flags, same rules, byte-identical output.

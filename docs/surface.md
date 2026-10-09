@@ -328,7 +328,7 @@ The top-level keys appear in this order; every object below them has sorted keys
 {
   "lockfileVersion": 1,
   "generator": "mcp-rc-check",
-  "generatorVersion": "0.2.0",
+  "generatorVersion": "0.3.0",
   "hashAlgorithm": "sha256",
   "source": { "kind": "stdio", "target": "node (+1 argument)" },
   "covers": ["tools", "prompts", "resources", "server"],

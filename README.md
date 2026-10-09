@@ -37,7 +37,7 @@ Point the `@basitalisandhu` scope at GitHub Packages in `~/.npmrc` (GitHub's npm
 
 ```bash
 npx @basitalisandhu/mcp-rc-check scan --dump tools.json     # run without installing
-npm install -g @basitalisandhu/mcp-rc-check@0.2.0           # or install the mcp-rc-check command
+npm install -g @basitalisandhu/mcp-rc-check@0.3.0           # or install the mcp-rc-check command
 ```
 
 ### Container image
@@ -45,8 +45,8 @@ npm install -g @basitalisandhu/mcp-rc-check@0.2.0           # or install the mcp
 The image runs as the non-root `node` user with `/work` as the working directory; mount the files to check there:
 
 ```bash
-docker run --rm -v "$PWD:/work" ghcr.io/basitalisandhu/mcp-rc-check:0.2.0 scan --dump dump.json
-docker run --rm ghcr.io/basitalisandhu/mcp-rc-check:0.2.0 scan --url https://mcp.example.com/mcp
+docker run --rm -v "$PWD:/work" ghcr.io/basitalisandhu/mcp-rc-check:0.3.0 scan --dump dump.json
+docker run --rm ghcr.io/basitalisandhu/mcp-rc-check:0.3.0 scan --url https://mcp.example.com/mcp
 ```
 
 ## Quickstart

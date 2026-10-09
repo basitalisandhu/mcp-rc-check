@@ -18,7 +18,7 @@ mcp-rc-check answers that. It is for people who maintain an MCP server or SDK in
 - Every finding carries a rule id, a severity, the spec section URL, what to change, and whether `--fix` can write it. `--fix` writes a unified diff for the input file; it never edits in place.
 - `surface lock` and `surface verify` pin a server's tool surface (tools, schemas, annotations, prompts, resources and instructions) in a lock file and report what changed since you reviewed it, with a Claude Code `SessionStart` hook that stops a session on a HIGH change. See [Pin the tool surface](#pin-the-tool-surface).
 
-Output is `table` (default), `json` or `sarif`; the command exits 1 when a finding reaches `--fail-on`. TypeScript, Node 22 or newer, no runtime dependencies.
+Output is `table` (default), `json`, `sarif` or `markdown`; the command exits 1 when a finding reaches `--fail-on`. TypeScript, Node 22 or newer, no runtime dependencies.
 
 ## Install
 

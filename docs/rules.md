@@ -66,6 +66,11 @@ a `tools/list` (or resources, templates, prompts) result, a `server/discover` or
 JSON-RPC response wrapping one of those, a captured client request (its capabilities are checked), a bare
 array of tools, or an array of any of these.
 
+`toolsRepeat` is the second `tools/list` a live scan sends. Besides `tools-order-unstable`, it is checked by
+`result-type-missing` and `cache-hints-missing` when the first `tools/list` page passes them, so a server
+that only sometimes omits `resultType`, `ttlMs` or `cacheScope` is caught. Those findings point at
+`/toolsRepeat/result` and carry no autofix, because the first page carries the fix.
+
 ## What is not checked, and why
 
 - **Authorization changes** (validating `iss` per RFC 9207, `application_type` in Dynamic Client

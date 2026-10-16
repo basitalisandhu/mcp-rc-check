@@ -6,6 +6,26 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Node 22+](https://img.shields.io/badge/node-22%2B-blue.svg)](package.json)
 
+## Quick start
+
+```bash
+git clone https://github.com/basitalisandhu/mcp-rc-check && cd mcp-rc-check && npm ci && npm run build
+node dist/cli.js scan --stdio "node /path/to/your/server.js"   # or --url https://host/mcp, or --dump file.json
+node dist/cli.js scan --dump test/fixtures/fixture-pre-revision.json   # try it on a bundled pre-revision dump
+```
+
+The last command prints, among others:
+
+```
+ERROR cache-hints-missing  [tools/list]  (autofix)
+      the tools/list result has no ttlMs
+      change: Return ttlMs (an integer >= 0, in milliseconds) and cacheScope ("public" or "private") on server/discover, tools/list, prompts/list, resources/list, resources/templates/list and resources/read. The autofix writes the conservative ttlMs 0 and cacheScope "private"; choose real values.
+      spec:   https://modelcontextprotocol.io/specification/2026-07-28/server/utilities/caching#cacheable-results
+      at:     /lists/tools~1list/0/result
+```
+
+Installing the published package needs a GitHub token; see [Install](#install).
+
 ## What it does, who it is for, and why
 
 The [2026-07-28 revision](https://modelcontextprotocol.io/specification/2026-07-28/changelog) of the Model Context Protocol removes the `initialize` handshake and protocol-level sessions, makes servers implement `server/discover`, puts the protocol version and client capabilities in every request's `_meta`, requires `resultType` on every result and `ttlMs` and `cacheScope` on list results, adds the `Mcp-Method` and `Mcp-Name` request headers and `x-mcp-header` parameter mirroring, renumbers its error codes, moves tasks into an extension, and deprecates Roots, Sampling, Logging, Dynamic Client Registration and the HTTP+SSE transport. Reading the changelog tells you what changed; it does not tell you which of those changes your server or your client configuration trips over.
@@ -37,7 +57,17 @@ Point the `@basitalisandhu` scope at GitHub Packages in `~/.npmrc` (GitHub's npm
 
 ```bash
 npx @basitalisandhu/mcp-rc-check scan --dump tools.json     # run without installing
-npm install -g @basitalisandhu/mcp-rc-check@0.3.0           # or install the mcp-rc-check command
+npm install -g @basitalisandhu/mcp-rc-check@0.4.0           # or install the mcp-rc-check command
+```
+
+### From a clone
+
+No token needed; Node 22 or newer:
+
+```bash
+git clone https://github.com/basitalisandhu/mcp-rc-check && cd mcp-rc-check
+npm ci && npm run build
+node dist/cli.js --help        # or `npm link` to get the mcp-rc-check command
 ```
 
 ### Container image
@@ -45,8 +75,8 @@ npm install -g @basitalisandhu/mcp-rc-check@0.3.0           # or install the mcp
 The image runs as the non-root `node` user with `/work` as the working directory; mount the files to check there:
 
 ```bash
-docker run --rm -v "$PWD:/work" ghcr.io/basitalisandhu/mcp-rc-check:0.3.0 scan --dump dump.json
-docker run --rm ghcr.io/basitalisandhu/mcp-rc-check:0.3.0 scan --url https://mcp.example.com/mcp
+docker run --rm -v "$PWD:/work" ghcr.io/basitalisandhu/mcp-rc-check:0.4.0 scan --dump dump.json
+docker run --rm ghcr.io/basitalisandhu/mcp-rc-check:0.4.0 scan --url https://mcp.example.com/mcp
 ```
 
 ## Quickstart

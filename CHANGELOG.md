@@ -6,6 +6,17 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-16
+
+### Changed
+
+- `result-type-missing` and `cache-hints-missing` also check the second `tools/list` a live scan sends (`toolsRepeat`), so a server that only sometimes omits `resultType`, `ttlMs` or `cacheScope` is caught. The finding points at `/toolsRepeat/result`, says "(second listing)" and has no autofix; it is not repeated when the first page already has the problem. Closes #2.
+- README: a quick start with a sample finding at the top, and install steps from a clone that need no GitHub token.
+
+### Fixed
+
+- The JSON Pointer resolver accepted non-canonical array indexes (an empty token, `01`, ` 1`) and inherited object properties such as `toString`; it now follows RFC 6901 and returns nothing for them.
+
 ## [0.3.0] - 2026-10-09
 
 ### Added
@@ -62,7 +73,8 @@ First release. Published to two registries on GitHub Packages, using only the wo
 - Output formats `table`, `json` and `sarif` (SARIF 2.1.0 with the spec section as each rule's `helpUri`); `--fail-on` sets the exit-code threshold.
 - Test suite with pre-revision and post-revision dumps, one fixture per rule family, a stdio fixture server and a loopback HTTP fixture server, byte-for-byte patch checks, CI on Node 22 and 24, a container image published on version tags, and a guarded npmjs release workflow.
 
-[Unreleased]: https://github.com/basitalisandhu/mcp-rc-check/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/basitalisandhu/mcp-rc-check/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/basitalisandhu/mcp-rc-check/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/basitalisandhu/mcp-rc-check/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/basitalisandhu/mcp-rc-check/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/basitalisandhu/mcp-rc-check/releases/tag/v0.1.0

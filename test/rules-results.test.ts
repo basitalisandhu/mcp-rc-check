@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { checkDump } from '../src/check.js';
-import { byRule, scanFixture } from './helpers.js';
+import { byRule, readFixture, scanFixture } from './helpers.js';
 
 describe('result rules', () => {
   it('flags a missing resultType with an add fix', () => {
@@ -30,6 +30,30 @@ describe('result rules', () => {
       { op: 'add', path: '/lists/tools~1list/0/result/ttlMs', value: 0 },
       { op: 'add', path: '/lists/tools~1list/0/result/cacheScope', value: 'private' },
     ]);
+  });
+
+  it('checks the repeated tools/list for cache hints, without a fix', () => {
+    const r = scanFixture('fixture-repeat-drift.json');
+    const f = byRule(r, 'cache-hints-missing');
+    expect(f).toHaveLength(1);
+    expect(f[0]!.pointer).toBe('/toolsRepeat/result');
+    expect(f[0]!.message).toBe('the tools/list result (second listing) has no ttlMs');
+    expect(f[0]!.fix).toBeUndefined();
+    expect(byRule(scanFixture('fixture-post-revision.json'), 'cache-hints-missing')).toEqual([]);
+  });
+
+  it('checks the repeated tools/list for resultType, without a fix', () => {
+    const doc = JSON.parse(JSON.stringify(readFixture('fixture-post-revision.json'))) as { toolsRepeat: { result: Record<string, unknown> } };
+    delete doc.toolsRepeat.result.resultType;
+    const f = byRule(checkDump(doc, 'x'), 'result-type-missing');
+    expect(f.map((x) => [x.pointer, x.message, x.fix])).toEqual([
+      ['/toolsRepeat/result', 'the tools/list result (second listing) has no resultType', undefined],
+    ]);
+  });
+
+  it('does not repeat a finding the first tools/list page already carries', () => {
+    const pre = scanFixture('fixture-pre-revision.json');
+    expect(pre.findings.filter((x) => x.pointer.startsWith('/toolsRepeat') && x.ruleId !== 'tools-order-unstable')).toEqual([]);
   });
 
   it('rejects a fractional ttlMs', () => {

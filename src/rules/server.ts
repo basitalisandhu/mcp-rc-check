@@ -190,12 +190,12 @@ const resultTypeMissing: ServerRule = {
   autofix: true,
   check(view) {
     const out: Finding[] = [];
-    for (const ref of view.results) {
+    for (const ref of resultsWithRepeat(view, (first) => typeof first.resultType === 'string')) {
       if (!has(ref.result, 'resultType')) {
         out.push(
-          finding(this, subjectOf(ref), ref.ptr, `the ${ref.method} result${pageNote(ref)} has no resultType`, [
+          finding(this, subjectOf(ref), ref.ptr, `the ${ref.method} result${pageNote(ref)} has no resultType`, fixUnlessRepeat(ref, [
             { op: 'add', path: join(ref.ptr, 'resultType'), value: 'complete' },
-          ]),
+          ])),
         );
       } else if (typeof ref.result.resultType !== 'string') {
         out.push(finding(this, subjectOf(ref), join(ref.ptr, 'resultType'), `the ${ref.method} result${pageNote(ref)} has a resultType that is not a string`));
@@ -205,11 +205,29 @@ const resultTypeMissing: ServerRule = {
   },
 };
 
+/**
+ * `view.results` plus the repeated tools/list a live scan sends, so a server that only
+ * sometimes omits a field is caught. The repeat is checked only when the first tools/list
+ * page passes `firstOk`: when the first page already fails, the finding (and its fix) is
+ * reported there and repeating it would only add noise.
+ */
+function resultsWithRepeat(view: View, firstOk: (first: JsonObject) => boolean): ResultRef[] {
+  const first = view.lists['tools/list']?.[0];
+  if (!view.toolsRepeat || !first || !firstOk(first.result)) return view.results;
+  return [...view.results, view.toolsRepeat];
+}
+
+/** The repeat listing is not part of what --fix patches: the first page carries the fix. */
+function fixUnlessRepeat(ref: ResultRef, fix: PatchOp[]): PatchOp[] | undefined {
+  return ref.repeat ? undefined : fix;
+}
+
 function subjectOf(ref: ResultRef): string {
   return ref.method;
 }
 
 function pageNote(ref: ResultRef): string {
+  if (ref.repeat) return ' (second listing)';
   return ref.page > 0 ? ` (page ${ref.page + 1})` : '';
 }
 
@@ -225,28 +243,30 @@ const cacheHintsMissing: ServerRule = {
   autofix: true,
   check(view) {
     const out: Finding[] = [];
-    for (const ref of view.results) {
+    const firstOk = (r: JsonObject) =>
+      typeof r.ttlMs === 'number' && Number.isInteger(r.ttlMs) && r.ttlMs >= 0 && (r.cacheScope === 'public' || r.cacheScope === 'private');
+    for (const ref of resultsWithRepeat(view, firstOk)) {
       if (!(CACHEABLE_METHODS as readonly string[]).includes(ref.method) || isInterim(ref.result)) continue;
       const r = ref.result;
       const where = `the ${ref.method} result${pageNote(ref)}`;
       if (!has(r, 'ttlMs')) {
-        out.push(finding(this, subjectOf(ref), ref.ptr, `${where} has no ttlMs`, [{ op: 'add', path: join(ref.ptr, 'ttlMs'), value: 0 }]));
+        out.push(finding(this, subjectOf(ref), ref.ptr, `${where} has no ttlMs`, fixUnlessRepeat(ref, [{ op: 'add', path: join(ref.ptr, 'ttlMs'), value: 0 }])));
       } else if (typeof r.ttlMs !== 'number' || !Number.isInteger(r.ttlMs) || r.ttlMs < 0) {
         out.push(
-          finding(this, subjectOf(ref), join(ref.ptr, 'ttlMs'), `${where} has ttlMs ${JSON.stringify(r.ttlMs)}; it must be an integer >= 0`, [
+          finding(this, subjectOf(ref), join(ref.ptr, 'ttlMs'), `${where} has ttlMs ${JSON.stringify(r.ttlMs)}; it must be an integer >= 0`, fixUnlessRepeat(ref, [
             { op: 'replace', path: join(ref.ptr, 'ttlMs'), value: 0 },
-          ]),
+          ])),
         );
       }
       if (!has(r, 'cacheScope')) {
         out.push(
-          finding(this, subjectOf(ref), ref.ptr, `${where} has no cacheScope`, [{ op: 'add', path: join(ref.ptr, 'cacheScope'), value: 'private' }]),
+          finding(this, subjectOf(ref), ref.ptr, `${where} has no cacheScope`, fixUnlessRepeat(ref, [{ op: 'add', path: join(ref.ptr, 'cacheScope'), value: 'private' }])),
         );
       } else if (r.cacheScope !== 'public' && r.cacheScope !== 'private') {
         out.push(
-          finding(this, subjectOf(ref), join(ref.ptr, 'cacheScope'), `${where} has cacheScope ${JSON.stringify(r.cacheScope)}; it must be "public" or "private"`, [
+          finding(this, subjectOf(ref), join(ref.ptr, 'cacheScope'), `${where} has cacheScope ${JSON.stringify(r.cacheScope)}; it must be "public" or "private"`, fixUnlessRepeat(ref, [
             { op: 'replace', path: join(ref.ptr, 'cacheScope'), value: 'private' },
-          ]),
+          ])),
         );
       }
     }

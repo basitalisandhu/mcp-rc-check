@@ -77,6 +77,8 @@ export interface ResultRef {
   /** The exchange that produced the result (canonical dumps only), and its pointer. */
   exchange?: Exchange;
   exchangePtr?: string;
+  /** The second tools/list a live scan sends; checked for drift, never patched. */
+  repeat?: boolean;
 }
 
 export interface ToolRef {
@@ -172,7 +174,7 @@ function normaliseCanonical(doc: JsonObject): View {
     }
   }
   if (isObject(dump.toolsRepeat) && isObject(dump.toolsRepeat.result)) {
-    view.toolsRepeat = { method: 'tools/list', result: dump.toolsRepeat.result, ptr: '/toolsRepeat/result', page: 0 };
+    view.toolsRepeat = { method: 'tools/list', result: dump.toolsRepeat.result, ptr: '/toolsRepeat/result', page: 0, repeat: true };
   }
   if (isObject(dump.probes)) {
     view.probes = dump.probes;

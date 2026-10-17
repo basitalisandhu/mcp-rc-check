@@ -20,10 +20,15 @@ export function readFixture(name: string): unknown {
 }
 
 export function scanFixture(name: string): Report {
-  return checkDump(readFixture(name), name);
+  const doc = readFixture(name);
+  // For dump files, the target should come from doc.source.target
+  // but some fixtures (like bare tools/list results) don't have this structure
+  const target = typeof doc === 'object' && doc && 'source' in doc && typeof doc.source === 'object' && doc.source && 'target' in doc.source ? doc.source.target : name;
+  return checkDump(doc, target);
 }
 
 export function clientFixture(name: string): Report {
+  // For client config, use the filename as the target
   return checkClientConfig(readFixture(name), name);
 }
 

@@ -6,7 +6,7 @@ import { checkClientConfig, checkDump, failsAt, ruleById } from './check.js';
 import { ConfigError } from './config.js';
 import { unifiedDiff } from './diff.js';
 import { DumpError } from './dump.js';
-import { formatJson, formatRules, formatSarif, formatTable, type Format } from './format.js';
+import { formatJson, formatRules, formatSarif, formatTable, formatMarkdown, type Format } from './format.js';
 import { scanHttp, scanStdio } from './live/scan.js';
 import { ConnectionError } from './live/transport.js';
 import { applyOps, collectOps, serialiseLike } from './patch.js';
@@ -40,7 +40,7 @@ Options:
   --save-dump <file>       Write what a live scan saw, to re-check later with --dump
   --fix                    Write a unified diff with the mechanical fixes (with --dump or client --config)
   --patch-file <file>      Where --fix writes the patch (default: <input>.patch; "-" for stdout)
-  --format <fmt>           table (default), json, sarif
+  --format <fmt>           table (default), json, sarif, markdown
   --fail-on <severity>     Exit 1 when a finding is at or above this severity: error (default), warning, info
   --disable <rule-id>      Skip a rule (repeatable)
   -h, --help               Show this help
@@ -142,9 +142,9 @@ export function parseArgs(argv: string[]): CliOptions {
       case '--patch-file':
         o.patchFile = value();
         break;
-      case '--format': {
+        case '--format': {
         const f = value();
-        if (f !== 'table' && f !== 'json' && f !== 'sarif') throw new UsageError(`--format must be table, json or sarif, got ${JSON.stringify(f)}`);
+        if (f !== 'table' && f !== 'json' && f !== 'sarif' && f !== 'markdown') throw new UsageError(`--format must be table, json, sarif or markdown, got ${JSON.stringify(f)}`);
         o.format = f;
         break;
       }
@@ -192,6 +192,7 @@ function readJson(file: string, what: string): { text: string; doc: unknown } {
 function render(report: Report, o: CliOptions, artifactUri: string): string {
   if (o.format === 'json') return formatJson(report, VERSION);
   if (o.format === 'sarif') return formatSarif(report, { toolVersion: VERSION, artifactUri });
+  if (o.format === 'markdown') return formatMarkdown(report);
   return formatTable(report);
 }
 
@@ -234,7 +235,7 @@ export async function main(argv: string[], io: Io): Promise<number> {
   }
   try {
     if (o.command === 'rules') {
-      io.stdout(formatRules(o.format === 'json' ? 'json' : 'table'));
+      io.stdout(formatRules(o.format));
       return 0;
     }
     if (o.command === 'client') {

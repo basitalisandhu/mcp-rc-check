@@ -57,7 +57,7 @@ Point the `@basitalisandhu` scope at GitHub Packages in `~/.npmrc` (GitHub's npm
 
 ```bash
 npx @basitalisandhu/mcp-rc-check scan --dump tools.json     # run without installing
-npm install -g @basitalisandhu/mcp-rc-check@0.4.0           # or install the mcp-rc-check command
+npm install -g @basitalisandhu/mcp-rc-check@0.5.0           # or install the mcp-rc-check command
 ```
 
 ### From a clone
@@ -75,8 +75,8 @@ node dist/cli.js --help        # or `npm link` to get the mcp-rc-check command
 The image runs as the non-root `node` user with `/work` as the working directory; mount the files to check there:
 
 ```bash
-docker run --rm -v "$PWD:/work" ghcr.io/basitalisandhu/mcp-rc-check:0.4.0 scan --dump dump.json
-docker run --rm ghcr.io/basitalisandhu/mcp-rc-check:0.4.0 scan --url https://mcp.example.com/mcp
+docker run --rm -v "$PWD:/work" ghcr.io/basitalisandhu/mcp-rc-check:0.5.0 scan --dump dump.json
+docker run --rm ghcr.io/basitalisandhu/mcp-rc-check:0.5.0 scan --url https://mcp.example.com/mcp
 ```
 
 ## Quickstart
@@ -282,6 +282,28 @@ Severity follows the specification's wording: MUST and removed constructs are er
 | `client-static-routing-header` | client | error | yes | [basic/transports/streamable-http#server-validation](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#server-validation) |
 | `client-last-event-id-header` | client | warning | yes | [basic/transports/streamable-http#earlier-streamable-http-revisions](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#earlier-streamable-http-revisions) |
 | `client-legacy-version-pin` (advisory) | client | info |  | [basic/versioning#protocol-version-negotiation](https://modelcontextprotocol.io/specification/2026-07-28/basic/versioning#protocol-version-negotiation) |
+
+## Troubleshooting
+
+Real messages and what to do about them.
+
+**`npm error 401 Unauthorized - GET https://npm.pkg.github.com/@basitalisandhu%2fmcp-rc-check - authentication token not provided`.** GitHub Packages asks for a token even for public packages. Export a token with `read:packages` as `GITHUB_TOKEN` and add the two `~/.npmrc` lines under [Install](#install), or use [From a clone](#from-a-clone), which needs no token.
+
+**`scan needs exactly one of --stdio, --url or --dump`.** Give one target. The stdio command is one quoted string: `--stdio "node build/server.js"`, not `--stdio node build/server.js`.
+
+**`the server did not answer server/discover: cannot run my-server: spawn my-server ENOENT`.** The `--stdio` command is not on `PATH` for the tool. Use the full path, or `npx -y <package>`. `server process exited (code 3)` with the server's stderr after it means the server started and then failed; run the same command by hand to see why.
+
+**`neither server/discover (fetch failed: connect ECONNREFUSED 127.0.0.1:3000) nor initialize (...) succeeded`.** Nothing is listening at `--url`. Check the port and the path (`/mcp` is common). `fetch failed: bad port` means Node refuses that port outright (for example 9 or 6000); serve on another one.
+
+**`nothing to check: expected an mcp-rc-check dump, a list result ...`.** The `--dump` file is JSON but not something the tool recognises. Save the server's `tools/list` result (or the whole JSON-RPC response) or use `scan --save-dump`.
+
+**`dump.json is UTF-16 text; save it as UTF-8`** or **`is not UTF-8 text`.** PowerShell's `>` writes UTF-16 by default; use `Out-File -Encoding utf8` or save the file as UTF-8 in your editor. A UTF-8 byte order mark is fine. Before 0.5.0 a non-UTF-8 file was read with replacement characters, which could change a tool name in a lock without saying so.
+
+**`dump.json is nested more than 256 levels deep; refusing to read it`.** No real dump, schema or configuration nests that deep; the file is malformed or hostile. Earlier versions crashed with a stack trace on such input.
+
+**`no lock file at .../mcp-surface.lock.json; create one with \`mcp-rc-check surface lock\``.** `surface verify` compares against a lock; review the server and run `surface lock` first, or point at the right file with `--lock`.
+
+**`the definition of tool "x" does not match its hash; the lock was edited by hand`.** Lock files are written by `surface lock` only. Re-create the lock after reviewing the server instead of editing it.
 
 ## Frequently asked questions
 

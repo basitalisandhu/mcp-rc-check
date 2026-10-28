@@ -108,7 +108,7 @@ Each entry is normalised before it is hashed or compared. Statements marked **(i
 
 Deliberately not normalised:
 
-- **Every non-ASCII character**, including zero-width characters, non-breaking spaces, bidirectional controls and look-alike letters. Hidden characters in a description can carry text a person does not see, so adding one is a change.
+- **Every non-ASCII character**, including zero-width characters, non-breaking spaces, bidirectional controls and look-alike letters. Hidden characters in a description can carry text a person does not see, so adding one is a change. When a tool description differs only in such characters, the `tool-description-changed` message says the visible text is unchanged and names each code point added or removed, for example `U+200B ZERO WIDTH SPACE added, U+202E RIGHT-TO-LEFT OVERRIDE added`, so a change that looks empty in a diff is explained.
 - **`enum` order, `default` values, `examples`, `$schema`.** These can change what a model sends.
 - **Case.** `Read` and `read` differ.
 

@@ -9,6 +9,7 @@
 import { readFileSync } from 'node:fs';
 import { clientView, ConfigError, transportOf } from '../config.js';
 import { isObject, type JsonObject } from './json.js';
+import { decodeUtf8, nestingExceeds, TOO_DEEP } from '../util.js';
 
 export { ConfigError, transportOf };
 
@@ -82,9 +83,10 @@ export function configEntries(doc: unknown): ConfigEntry[] {
 export function readConfig(file: string): ConfigEntry[] {
   let text: string;
   try {
-    text = readFileSync(file, 'utf8');
+    text = decodeUtf8(readFileSync(file));
   } catch (error) {
-    throw new ConfigError(`cannot read ${file}: ${(error as NodeJS.ErrnoException).code ?? (error as Error).message}`);
+    const code = (error as NodeJS.ErrnoException).code;
+    throw new ConfigError(code ? `cannot read ${file}: ${code}` : `${file} ${(error as Error).message}`);
   }
   let doc: unknown;
   try {
@@ -92,6 +94,7 @@ export function readConfig(file: string): ConfigEntry[] {
   } catch (error) {
     throw new ConfigError(`${file} is not valid JSON: ${(error as Error).message}`);
   }
+  if (nestingExceeds(doc)) throw new ConfigError(`${file} is ${TOO_DEEP}`);
   try {
     return configEntries(doc);
   } catch (error) {

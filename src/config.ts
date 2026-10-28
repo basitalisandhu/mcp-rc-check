@@ -1,5 +1,5 @@
 import { join } from './pointer.js';
-import { isObject, type JsonObject } from './util.js';
+import { isObject, nestingExceeds, TOO_DEEP, type JsonObject } from './util.js';
 
 /** One MCP server entry from a client configuration file. */
 export interface ServerEntry {
@@ -34,6 +34,7 @@ function collect(out: ServerEntry[], servers: unknown, ptr: string, prefix: stri
  */
 export function clientView(doc: unknown): ClientView {
   if (!isObject(doc)) throw new ConfigError('the configuration is not a JSON object');
+  if (nestingExceeds(doc)) throw new ConfigError(`the configuration is ${TOO_DEEP}`);
   const entries: ServerEntry[] = [];
   collect(entries, doc.mcpServers, '/mcpServers', '');
   collect(entries, doc.servers, '/servers', '');

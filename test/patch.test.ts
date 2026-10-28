@@ -88,7 +88,8 @@ describe('patch helpers', () => {
   it('keeps the indentation and trailing newline of the input', () => {
     expect(detectIndent('{\n    "a": 1\n}\n')).toBe('    ');
     expect(detectIndent('{\n\t"a": 1\n}')).toBe('\t');
-    expect(detectIndent('{"a":1}')).toBe(2);
+    expect(detectIndent('{"a":1}')).toBe(0); // one-line documents stay on one line
+    expect(detectIndent('{"a":\n1}')).toBe(2);
     expect(serialiseLike('{\n    "a": 1\n}', { a: 2 })).toBe('{\n    "a": 2\n}');
   });
 });

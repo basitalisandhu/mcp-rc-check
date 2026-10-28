@@ -6,6 +6,21 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-28
+
+### Added
+
+- `surface verify`: when a tool description changed only in characters outside printable ASCII, the `tool-description-changed` message says the visible text is unchanged and names each code point added or removed (for example `U+200B ZERO WIDTH SPACE added`). Class and severity are unchanged. Closes #16.
+- README: Troubleshooting section with the real messages and their fixes.
+- `scripts/e2e-quickstart.sh` (`npm run e2e`) runs the README quick start on a fresh clone and the Quickstart section from the packed tarball in an empty project; CI runs it.
+- Seeded fuzz tests over every file reader (`scan --dump`, `client --config`, `surface lock`, `surface verify`, `surface verify-config`) and a property test for the unified diff.
+
+### Fixed
+
+- A document nested tens of thousands of levels deep (a dump, a schema, a configuration or a lock) crashed `scan` and `surface lock` with a stack overflow; input nested more than 256 levels is now refused with exit 2 naming the file.
+- A file that is not UTF-8 was read with replacement characters, so a lock could record a changed tool name without saying so; such files are now refused (UTF-16 is named). A UTF-8 byte order mark is accepted, and kept in `--fix` patches.
+- `--fix` on a dump written on one line (the usual shape of a saved `tools/list` result) re-indented the whole file and diffed every line: 2.4 s for 1,000 tools, and out of memory after 157 s for 10,000. One-line documents now stay on one line (0.05 s and 0.14 s), and the diff trims shared lines first and keeps memory to the edit size; above 2,000 differences it replaces the changed block in one hunk.
+
 ## [0.4.0] - 2026-10-16
 
 ### Changed

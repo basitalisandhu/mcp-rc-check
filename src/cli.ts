@@ -13,6 +13,7 @@ import { applyOps, collectOps, serialiseLike } from './patch.js';
 import { surfaceMain } from './surface/cli.js';
 import type { Report, Severity } from './types.js';
 import { VERSION } from './version.js';
+import { decodeUtf8, nestingExceeds, TOO_DEEP } from './util.js';
 
 export { VERSION };
 
@@ -176,17 +177,28 @@ export interface Io {
 }
 
 function readJson(file: string, what: string): { text: string; doc: unknown } {
-  let text: string;
+  let bytes: Buffer;
   try {
-    text = readFileSync(file, 'utf8');
+    bytes = readFileSync(file);
   } catch (error) {
     throw new DumpError(`cannot read ${what} ${file}: ${(error as NodeJS.ErrnoException).code ?? (error as Error).message}`);
   }
+  let text: string;
   try {
-    return { text, doc: JSON.parse(text) };
+    text = decodeUtf8(bytes);
+  } catch (error) {
+    throw new DumpError(`${file} ${(error as Error).message}`);
+  }
+  let doc: unknown;
+  try {
+    doc = JSON.parse(text);
   } catch (error) {
     throw new DumpError(`${file} is not valid JSON: ${(error as Error).message}`);
   }
+  if (nestingExceeds(doc)) throw new DumpError(`${file} is ${TOO_DEEP}`);
+  // Keep a byte order mark in the text the patch is made from, so the patch applies.
+  const bom = bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf ? '\ufeff' : '';
+  return { text: bom + text, doc };
 }
 
 function render(report: Report, o: CliOptions, artifactUri: string): string {

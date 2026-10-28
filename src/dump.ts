@@ -1,7 +1,7 @@
 import { join } from './pointer.js';
 import { LIST_FIELD } from './spec.js';
 import type { Era } from './types.js';
-import { isObject, type JsonObject } from './util.js';
+import { isObject, nestingExceeds, TOO_DEEP, type JsonObject } from './util.js';
 
 /** A JSON-RPC error object as received. */
 export interface RpcError {
@@ -232,6 +232,7 @@ function normaliseLoose(view: View, value: unknown, ptr: string): void {
 
 /** Normalise any accepted input document into a View. */
 export function normalise(doc: unknown): View {
+  if (nestingExceeds(doc)) throw new DumpError(`the document is ${TOO_DEEP}`);
   if (isObject(doc) && doc.mcpRcCheckDump === 1) return normaliseCanonical(doc);
   const view = emptyView(doc, false, 'file');
   if (Array.isArray(doc)) {

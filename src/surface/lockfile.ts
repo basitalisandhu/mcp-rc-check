@@ -5,6 +5,7 @@
 import { readFileSync } from 'node:fs';
 import { canonicalJson, isObject, sha256, sortKeys, type Json, type JsonObject } from './json.js';
 import { ALL_PARTS, type NormalisedSurface, type NormalisedTool, type Part, type ServerIdentity } from './normalise.js';
+import { decodeUtf8, nestingExceeds, TOO_DEEP } from '../util.js';
 
 export const LOCKFILE_VERSION = 1;
 export const DEFAULT_LOCK = 'mcp-surface.lock.json';
@@ -152,6 +153,7 @@ export function parseLock(text: string, file: string): Lock {
   } catch (error) {
     throw new LockError(`${file} is not valid JSON: ${(error as Error).message}`);
   }
+  if (nestingExceeds(doc)) throw new LockError(`${file} is ${TOO_DEEP}`);
   if (!isObject(doc)) throw new LockError(`${file} is not a JSON object`);
   if (doc.lockfileVersion !== LOCKFILE_VERSION) {
     throw new LockError(`${file} has lockfileVersion ${JSON.stringify(doc.lockfileVersion ?? null)}; this version of mcp-rc-check reads version ${LOCKFILE_VERSION} only. Re-create it with \`mcp-rc-check surface lock\`.`);
@@ -177,12 +179,18 @@ export function parseLock(text: string, file: string): Lock {
 }
 
 export function readLock(file: string): Lock {
-  let text: string;
+  let bytes: Buffer;
   try {
-    text = readFileSync(file, 'utf8');
+    bytes = readFileSync(file);
   } catch (error) {
     const code = (error as NodeJS.ErrnoException).code;
     throw new LockError(code === 'ENOENT' ? `no lock file at ${file}; create one with \`mcp-rc-check surface lock\`` : `cannot read ${file}: ${code ?? (error as Error).message}`);
+  }
+  let text: string;
+  try {
+    text = decodeUtf8(bytes);
+  } catch (error) {
+    throw new LockError(`${file} ${(error as Error).message}`);
   }
   return parseLock(text, file);
 }

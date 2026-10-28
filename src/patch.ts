@@ -42,10 +42,15 @@ export function applyOps(doc: unknown, ops: PatchOp[]): unknown {
   return copy;
 }
 
-/** Detect the indentation of a JSON text (the first indented line), defaulting to two spaces. */
+/**
+ * Detect the indentation of a JSON text (the first indented line), defaulting to two
+ * spaces. A document written on one line (a saved `tools/list` result usually is) stays on
+ * one line, so the patch changes that line instead of reformatting the whole file.
+ */
 export function detectIndent(text: string): string | number {
-  const m = text.match(/^[{[]\s*\n([ \t]+)\S/);
+  const m = text.match(/^\ufeff?[{[]\s*\n([ \t]+)\S/);
   if (m) return m[1]!;
+  if (!text.trim().includes('\n')) return 0;
   return 2;
 }
 

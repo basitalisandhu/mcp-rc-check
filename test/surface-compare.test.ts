@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { compareWithLock, counts, type Change } from '../src/surface/compare.js';
+import { compareWithLock, counts, invisibleDifference, type Change } from '../src/surface/compare.js';
 import { lockOf, surfaceOf } from './surface-helpers.js';
 
 function diff(after: string, required: string[] = []): Change[] {
@@ -75,5 +75,27 @@ describe('change classification', () => {
     const lock = lockOf('fixture-pages.json');
     expect(lock.covers).toEqual(['tools']);
     expect(compareWithLock(lock, surfaceOf('fixture-other-changes.json')).map((c) => c.ruleId)).toEqual(['tool-output-schema-changed', 'tool-title-changed']);
+  });
+});
+
+describe('changes that look empty', () => {
+  it('names the invisible characters added to a description', () => {
+    const changes = diff('fixture-invisible-character.json');
+    expect(brief(changes)).toEqual(['high tool-description-changed read_file']);
+    expect(changes[0]!.message).toContain('the visible text is unchanged');
+    expect(changes[0]!.message).toContain('U+200B ZERO WIDTH SPACE added');
+    expect(changes[0]!.message).toContain('U+202E RIGHT-TO-LEFT OVERRIDE added');
+  });
+
+  it('says nothing extra when the visible text changed too', () => {
+    expect(diff('fixture-description-changed.json')[0]!.message).not.toContain('visible text is unchanged');
+  });
+
+  it('counts, removals, tags, look-alikes and moves', () => {
+    expect(invisibleDifference('a b c', 'abc')).toContain('U+00A0 NO-BREAK SPACE removed x2');
+    expect(invisibleDifference('read', 'read\u{e0041}')).toContain('U+E0041 TAG CHARACTER added');
+    expect(invisibleDifference('read', 'rеad')).toBeUndefined(); // a Cyrillic e replaces a Latin e: visible text differs
+    expect(invisibleDifference('rad', 'rеad')).toContain('U+0435 added');
+    expect(invisibleDifference('a​b', 'ab​')).toContain('the same characters moved');
   });
 });

@@ -13,6 +13,7 @@ import { readFileSync } from 'node:fs';
 import { ERROR_CODE, META, TARGET_REVISION } from '../spec.js';
 import { isObject, type JsonObject } from './json.js';
 import { ALL_PARTS, SurfaceError, type Part, type RawSurface, type ServerIdentity } from './normalise.js';
+import { decodeUtf8, nestingExceeds, TOO_DEEP } from '../util.js';
 
 function objects(value: unknown, what: string): JsonObject[] {
   if (value === undefined) return [];
@@ -109,6 +110,7 @@ function fromScanDump(doc: JsonObject): RawSurface {
 }
 
 export function parseDump(doc: unknown): RawSurface {
+  if (nestingExceeds(doc)) throw new SurfaceError(`the document is ${TOO_DEEP}`);
   if (Array.isArray(doc)) {
     if (doc.length > 0 && doc.every((p) => isObject(unwrap(p)) && Array.isArray((unwrap(p) as JsonObject).tools))) {
       return { server: {}, tools: joinPages(doc, 'tools'), prompts: [], resources: [], resourceTemplates: [], covers: ['tools'] };
@@ -130,9 +132,10 @@ export function parseDump(doc: unknown): RawSurface {
 export function readDump(file: string): RawSurface {
   let text: string;
   try {
-    text = readFileSync(file, 'utf8');
+    text = decodeUtf8(readFileSync(file));
   } catch (error) {
-    throw new SurfaceError(`cannot read dump ${file}: ${(error as NodeJS.ErrnoException).code ?? (error as Error).message}`);
+    const code = (error as NodeJS.ErrnoException).code;
+    throw new SurfaceError(code ? `cannot read dump ${file}: ${code}` : `${file} ${(error as Error).message}`);
   }
   let doc: unknown;
   try {
@@ -140,6 +143,7 @@ export function readDump(file: string): RawSurface {
   } catch (error) {
     throw new SurfaceError(`${file} is not valid JSON: ${(error as Error).message}`);
   }
+  if (nestingExceeds(doc)) throw new SurfaceError(`${file} is ${TOO_DEEP}`);
   try {
     return parseDump(doc);
   } catch (error) {

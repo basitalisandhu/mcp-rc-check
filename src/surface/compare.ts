@@ -37,10 +37,101 @@ function hintWord(v: boolean): string {
   return v ? 'true' : 'false';
 }
 
+/** Names for the characters that are invisible or easy to mistake for a space. */
+const CHARACTER_NAMES: Record<number, string> = {
+  0x00a0: 'NO-BREAK SPACE',
+  0x00ad: 'SOFT HYPHEN',
+  0x034f: 'COMBINING GRAPHEME JOINER',
+  0x061c: 'ARABIC LETTER MARK',
+  0x115f: 'HANGUL CHOSEONG FILLER',
+  0x1160: 'HANGUL JUNGSEONG FILLER',
+  0x180e: 'MONGOLIAN VOWEL SEPARATOR',
+  0x2000: 'EN QUAD',
+  0x2001: 'EM QUAD',
+  0x2002: 'EN SPACE',
+  0x2003: 'EM SPACE',
+  0x2004: 'THREE-PER-EM SPACE',
+  0x2005: 'FOUR-PER-EM SPACE',
+  0x2006: 'SIX-PER-EM SPACE',
+  0x2007: 'FIGURE SPACE',
+  0x2008: 'PUNCTUATION SPACE',
+  0x2009: 'THIN SPACE',
+  0x200a: 'HAIR SPACE',
+  0x200b: 'ZERO WIDTH SPACE',
+  0x200c: 'ZERO WIDTH NON-JOINER',
+  0x200d: 'ZERO WIDTH JOINER',
+  0x200e: 'LEFT-TO-RIGHT MARK',
+  0x200f: 'RIGHT-TO-LEFT MARK',
+  0x2028: 'LINE SEPARATOR',
+  0x2029: 'PARAGRAPH SEPARATOR',
+  0x202a: 'LEFT-TO-RIGHT EMBEDDING',
+  0x202b: 'RIGHT-TO-LEFT EMBEDDING',
+  0x202c: 'POP DIRECTIONAL FORMATTING',
+  0x202d: 'LEFT-TO-RIGHT OVERRIDE',
+  0x202e: 'RIGHT-TO-LEFT OVERRIDE',
+  0x202f: 'NARROW NO-BREAK SPACE',
+  0x205f: 'MEDIUM MATHEMATICAL SPACE',
+  0x2060: 'WORD JOINER',
+  0x2061: 'FUNCTION APPLICATION',
+  0x2062: 'INVISIBLE TIMES',
+  0x2063: 'INVISIBLE SEPARATOR',
+  0x2064: 'INVISIBLE PLUS',
+  0x2066: 'LEFT-TO-RIGHT ISOLATE',
+  0x2067: 'RIGHT-TO-LEFT ISOLATE',
+  0x2068: 'FIRST STRONG ISOLATE',
+  0x2069: 'POP DIRECTIONAL ISOLATE',
+  0x3000: 'IDEOGRAPHIC SPACE',
+  0x3164: 'HANGUL FILLER',
+  0xfeff: 'ZERO WIDTH NO-BREAK SPACE',
+  0xffa0: 'HALFWIDTH HANGUL FILLER',
+};
+
+function characterName(code: number): string {
+  const hex = `U+${code.toString(16).toUpperCase().padStart(4, '0')}`;
+  const name = CHARACTER_NAMES[code];
+  if (name) return `${hex} ${name}`;
+  if (code >= 0xe0000 && code <= 0xe007f) return `${hex} TAG CHARACTER`;
+  if (code >= 0xfe00 && code <= 0xfe0f) return `${hex} VARIATION SELECTOR`;
+  if (code < 0x20 || (code >= 0x7f && code < 0xa0)) return `${hex} CONTROL CHARACTER`;
+  return hex;
+}
+
+const outsidePrintableAscii = (c: string): boolean => c.length > 1 || c < ' ' || c > '~';
+
+/**
+ * When two texts differ only in characters outside printable ASCII (zero-width, bidirectional
+ * and other invisible characters, non-breaking spaces, look-alike letters), say which were
+ * added and removed, because such a change looks empty to a person reading the two versions.
+ */
+export function invisibleDifference(before: string, after: string): string | undefined {
+  const a = [...before];
+  const b = [...after];
+  const visible = (chars: string[]): string => chars.filter((c) => !outsidePrintableAscii(c)).join('');
+  if (visible(a) !== visible(b)) return undefined;
+  const count = (chars: string[]): Map<number, number> => {
+    const m = new Map<number, number>();
+    for (const c of chars) if (outsidePrintableAscii(c)) m.set(c.codePointAt(0)!, (m.get(c.codePointAt(0)!) ?? 0) + 1);
+    return m;
+  };
+  const ca = count(a);
+  const cb = count(b);
+  const parts: string[] = [];
+  for (const code of [...new Set([...ca.keys(), ...cb.keys()])].sort((x, y) => x - y)) {
+    const delta = (cb.get(code) ?? 0) - (ca.get(code) ?? 0);
+    if (delta === 0) continue;
+    const times = Math.abs(delta) > 1 ? ` x${Math.abs(delta)}` : '';
+    parts.push(`${characterName(code)} ${delta > 0 ? 'added' : 'removed'}${times}`);
+  }
+  if (parts.length === 0) parts.push('the same characters moved to other positions');
+  return `the visible text is unchanged; only characters outside printable ASCII differ: ${parts.join(', ')}`;
+}
+
 function compareTool(name: string, old: NormalisedTool, cur: NormalisedTool): Change[] {
   const out: Change[] = [];
   if (old.description !== cur.description) {
-    out.push(change('tool-description-changed', name, `description changed (${old.description?.length ?? 0} to ${cur.description?.length ?? 0} characters); see \`mcp-rc-check surface diff ${name}\``, name));
+    const hidden = invisibleDifference(old.description ?? '', cur.description ?? '');
+    const detail = hidden ? `; ${hidden}` : '';
+    out.push(change('tool-description-changed', name, `description changed (${old.description?.length ?? 0} to ${cur.description?.length ?? 0} characters)${detail}; see \`mcp-rc-check surface diff ${name}\``, name));
   }
   if (!same(old.inputSchema, cur.inputSchema)) out.push(change('tool-input-schema-changed', name, 'inputSchema changed', name));
   if (!same(old.outputSchema, cur.outputSchema)) {
